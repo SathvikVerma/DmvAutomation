@@ -1,0 +1,20 @@
+# Credentials and secrets
+.env
+
+# Database
+*.db
+
+# Python
+venv/
+__pycache__/
+*.pyc
+*.pyo
+
+# Debug screenshots
+*.png
+
+# Mac
+.DS_Store
+
+# VS Code
+.vscode/
