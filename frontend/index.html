@@ -1,0 +1,771 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DMV Notifier</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0d0f12;
+    --surface: #161a1f;
+    --surface2: #1e2329;
+    --border: #2a2f38;
+    --accent: #3b82f6;
+    --accent-dim: #1d4ed8;
+    --green: #22c55e;
+    --red: #ef4444;
+    --text: #e8eaed;
+    --text-dim: #8b949e;
+    --mono: 'DM Mono', monospace;
+    --sans: 'DM Sans', sans-serif;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--sans);
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* ── Header ── */
+  header {
+    padding: 20px 32px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  .logo {
+    font-family: var(--mono);
+    font-size: 15px;
+    font-weight: 500;
+    color: var(--accent);
+    letter-spacing: 0.05em;
+  }
+
+  .logo span { color: var(--text-dim); }
+
+  #user-info {
+    font-size: 13px;
+    color: var(--text-dim);
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  /* ── Main layout ── */
+  main {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 40px 20px;
+  }
+
+  /* ── Auth card ── */
+  .auth-card {
+    width: 100%;
+    max-width: 400px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 36px;
+  }
+
+  .auth-card h1 {
+    font-size: 22px;
+    font-weight: 600;
+    margin-bottom: 6px;
+  }
+
+  .auth-card p {
+    font-size: 14px;
+    color: var(--text-dim);
+    margin-bottom: 28px;
+  }
+
+  /* ── Dashboard ── */
+  .dashboard {
+    width: 100%;
+    max-width: 760px;
+  }
+
+  .dashboard-header {
+    margin-bottom: 28px;
+  }
+
+  .dashboard-header h1 {
+    font-size: 24px;
+    font-weight: 600;
+    margin-bottom: 4px;
+  }
+
+  .dashboard-header p {
+    font-size: 14px;
+    color: var(--text-dim);
+  }
+
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 24px;
+    margin-bottom: 16px;
+  }
+
+  .card-title {
+    font-size: 12px;
+    font-weight: 500;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--text-dim);
+    margin-bottom: 20px;
+  }
+
+  /* ── Form elements ── */
+  .form-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 14px;
+    margin-bottom: 14px;
+  }
+
+  .form-row.single { grid-template-columns: 1fr; }
+  .form-row.triple { grid-template-columns: 1fr 1fr 1fr; }
+
+  .field {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  label {
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--text-dim);
+    letter-spacing: 0.04em;
+  }
+
+  input, select {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 10px 12px;
+    font-size: 14px;
+    font-family: var(--sans);
+    color: var(--text);
+    outline: none;
+    transition: border-color 0.15s;
+    width: 100%;
+  }
+
+  input:focus, select:focus {
+    border-color: var(--accent);
+  }
+
+  select option { background: var(--surface2); }
+
+  /* ── Pill toggles ── */
+  .pill-group {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .pill {
+    padding: 6px 14px;
+    border-radius: 20px;
+    border: 1px solid var(--border);
+    background: var(--surface2);
+    font-size: 13px;
+    color: var(--text-dim);
+    cursor: pointer;
+    transition: all 0.15s;
+    user-select: none;
+  }
+
+  .pill:hover { border-color: var(--accent); color: var(--text); }
+
+  .pill.active {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: white;
+  }
+
+  /* ── Buttons ── */
+  .btn {
+    padding: 10px 20px;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 500;
+    font-family: var(--sans);
+    cursor: pointer;
+    border: none;
+    transition: all 0.15s;
+  }
+
+  .btn-primary {
+    background: var(--accent);
+    color: white;
+    width: 100%;
+    padding: 12px;
+    margin-top: 8px;
+  }
+
+  .btn-primary:hover { background: var(--accent-dim); }
+
+  .btn-secondary {
+    background: var(--surface2);
+    color: var(--text-dim);
+    border: 1px solid var(--border);
+  }
+
+  .btn-secondary:hover { color: var(--text); border-color: var(--text-dim); }
+
+  .btn-danger {
+    background: transparent;
+    color: var(--red);
+    border: 1px solid var(--red);
+    font-size: 13px;
+    padding: 7px 14px;
+  }
+
+  /* ── Switch toggle ── */
+  .switch-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 0;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .switch-row:last-child { border-bottom: none; }
+
+  .switch-label { font-size: 14px; }
+  .switch-desc { font-size: 12px; color: var(--text-dim); margin-top: 2px; }
+
+  .switch {
+    position: relative;
+    width: 40px;
+    height: 22px;
+    flex-shrink: 0;
+  }
+
+  .switch input { opacity: 0; width: 0; height: 0; position: absolute; }
+
+  .switch-track {
+    position: absolute;
+    inset: 0;
+    background: var(--border);
+    border-radius: 11px;
+    cursor: pointer;
+    transition: background 0.2s;
+  }
+
+  .switch input:checked + .switch-track { background: var(--accent); }
+
+  .switch-thumb {
+    position: absolute;
+    top: 3px;
+    left: 3px;
+    width: 16px;
+    height: 16px;
+    background: white;
+    border-radius: 50%;
+    pointer-events: none;
+    transition: transform 0.2s;
+  }
+
+  .switch input:checked ~ .switch-thumb { transform: translateX(18px); }
+
+  /* ── Status / alerts ── */
+  .alert {
+    padding: 10px 14px;
+    border-radius: 8px;
+    font-size: 13px;
+    margin-bottom: 16px;
+  }
+
+  .alert-error { background: rgba(239,68,68,0.1); border: 1px solid rgba(239,68,68,0.3); color: #fca5a5; }
+  .alert-success { background: rgba(34,197,94,0.1); border: 1px solid rgba(34,197,94,0.3); color: #86efac; }
+
+  /* ── Auth toggle ── */
+  .auth-toggle {
+    text-align: center;
+    margin-top: 20px;
+    font-size: 13px;
+    color: var(--text-dim);
+  }
+
+  .auth-toggle a {
+    color: var(--accent);
+    cursor: pointer;
+    text-decoration: none;
+  }
+
+  /* ── Divider ── */
+  .divider {
+    height: 1px;
+    background: var(--border);
+    margin: 20px 0;
+  }
+
+  /* ── Status dot ── */
+  .status-dot {
+    display: inline-block;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--green);
+    margin-right: 6px;
+    animation: pulse 2s infinite;
+  }
+
+  @keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.4; }
+  }
+
+  .hidden { display: none !important; }
+
+  /* ── Conditional fields ── */
+  #custom-time-fields, #custom-day-fields { margin-top: 14px; }
+
+  /* ── Save bar ── */
+  .save-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-top: 8px;
+  }
+
+  #save-status {
+    font-size: 13px;
+    color: var(--green);
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">dmv<span>/</span>notifier</div>
+  <div id="user-info" class="hidden">
+    <span><span class="status-dot"></span>active</span>
+    <button class="btn btn-secondary" onclick="logout()" style="padding:6px 14px;font-size:13px;">Sign out</button>
+  </div>
+</header>
+
+<main id="main-content">
+
+  <!-- ── Auth view ── -->
+  <div id="auth-view" class="auth-card">
+    <h1 id="auth-title">Sign in</h1>
+    <p id="auth-subtitle">Get notified when DMV appointments open up near you.</p>
+
+    <div id="alert-box" class="hidden"></div>
+
+    <div class="field" style="margin-bottom:14px;">
+      <label>Email</label>
+      <input type="email" id="auth-email" placeholder="you@example.com" />
+    </div>
+
+    <div class="field" style="margin-bottom:6px;">
+      <label>Password</label>
+      <input type="password" id="auth-password" placeholder="••••••••" />
+    </div>
+
+    <button class="btn btn-primary" id="auth-btn" onclick="handleAuth()">Sign in</button>
+
+    <div class="auth-toggle">
+      <span id="auth-toggle-text">Don't have an account?</span>
+      <a onclick="toggleAuthMode()"> <span id="auth-toggle-link">Sign up</span></a>
+    </div>
+  </div>
+
+  <!-- ── Dashboard view ── -->
+  <div id="dashboard-view" class="dashboard hidden">
+
+    <div class="dashboard-header">
+      <h1>Your preferences</h1>
+      <p>Configure your DMV appointment alerts below.</p>
+    </div>
+
+    <div id="dash-alert" class="hidden"></div>
+
+    <!-- Location -->
+    <div class="card">
+      <div class="card-title">Location</div>
+      <div class="form-row">
+        <div class="field">
+          <label>Zip code</label>
+          <input type="text" id="zip_code" placeholder="95035" maxlength="5" />
+        </div>
+        <div class="field">
+          <label>Radius (miles)</label>
+          <input type="number" id="radius_mi" placeholder="25" min="1" max="100" />
+        </div>
+      </div>
+    </div>
+
+    <!-- Service type -->
+    <div class="card">
+      <div class="card-title">Service type</div>
+      <div class="pill-group" id="service-pills">
+        <div class="pill active" data-value="automobile" onclick="selectPill(this, 'service-pills')">Automobile</div>
+        <div class="pill" data-value="commercial" onclick="selectPill(this, 'service-pills')">Commercial</div>
+        <div class="pill" data-value="motorcycle" onclick="selectPill(this, 'service-pills')">Motorcycle</div>
+        <div class="pill" data-value="realid_cdl" onclick="selectPill(this, 'service-pills')">Real ID & CDL</div>
+        <div class="pill" data-value="knowledge" onclick="selectPill(this, 'service-pills')">Knowledge Test</div>
+      </div>
+    </div>
+
+    <!-- Time filter -->
+    <div class="card">
+      <div class="card-title">Time preference</div>
+      <div class="pill-group" id="time-pills">
+        <div class="pill active" data-value="all" onclick="selectPill(this, 'time-pills'); toggleCustomTime()">Any time</div>
+        <div class="pill" data-value="morning" onclick="selectPill(this, 'time-pills'); toggleCustomTime()">Morning (before 12pm)</div>
+        <div class="pill" data-value="afternoon" onclick="selectPill(this, 'time-pills'); toggleCustomTime()">Afternoon (12pm+)</div>
+        <div class="pill" data-value="custom" onclick="selectPill(this, 'time-pills'); toggleCustomTime()">Custom range</div>
+      </div>
+      <div id="custom-time-fields" class="form-row hidden">
+        <div class="field">
+          <label>From (24hr)</label>
+          <input type="time" id="time_from" value="08:00" />
+        </div>
+        <div class="field">
+          <label>To (24hr)</label>
+          <input type="time" id="time_to" value="17:00" />
+        </div>
+      </div>
+    </div>
+
+    <!-- Day filter -->
+    <div class="card">
+      <div class="card-title">Day preference</div>
+      <div class="pill-group" id="day-pills">
+        <div class="pill active" data-value="all" onclick="selectPill(this, 'day-pills'); toggleCustomDays()">Any day</div>
+        <div class="pill" data-value="weekdays" onclick="selectPill(this, 'day-pills'); toggleCustomDays()">Weekdays only</div>
+        <div class="pill" data-value="custom" onclick="selectPill(this, 'day-pills'); toggleCustomDays()">Custom days</div>
+      </div>
+      <div id="custom-day-fields" class="hidden" style="margin-top:14px;">
+        <div class="pill-group" id="day-select-pills">
+          <div class="pill active" data-value="0" onclick="toggleDay(this)">Mon</div>
+          <div class="pill active" data-value="1" onclick="toggleDay(this)">Tue</div>
+          <div class="pill active" data-value="2" onclick="toggleDay(this)">Wed</div>
+          <div class="pill active" data-value="3" onclick="toggleDay(this)">Thu</div>
+          <div class="pill active" data-value="4" onclick="toggleDay(this)">Fri</div>
+          <div class="pill" data-value="5" onclick="toggleDay(this)">Sat</div>
+          <div class="pill" data-value="6" onclick="toggleDay(this)">Sun</div>
+        </div>
+      </div>
+      <div class="form-row" style="margin-top:14px;">
+        <div class="field">
+          <label>Only within next N days (leave blank for no limit)</label>
+          <input type="number" id="within_days" placeholder="e.g. 14" min="1" />
+        </div>
+      </div>
+    </div>
+
+    <!-- Notification settings -->
+    <div class="card">
+      <div class="card-title">Notification settings</div>
+      <div class="form-row triple">
+        <div class="field">
+          <label>Max slots per alert</label>
+          <select id="max_slots">
+            <option value="1">1 slot</option>
+            <option value="2">2 slots</option>
+            <option value="3" selected>3 slots</option>
+            <option value="5">5 slots</option>
+            <option value="10">10 slots</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>How often to check</label>
+          <select id="check_interval_min">
+            <option value="5" selected>Every 5 min</option>
+            <option value="30">Every 30 min</option>
+            <option value="60">Every hour</option>
+            <option value="300">Every 5 hours</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>Notify me</label>
+          <select id="notify_frequency">
+            <option value="realtime" selected>Every new slot</option>
+            <option value="once_day">Once per day</option>
+            <option value="twice_day">Twice per day</option>
+          </select>
+        </div>
+      </div>
+    </div>
+
+    <!-- Contact info -->
+    <div class="card">
+      <div class="card-title">Contact info</div>
+      <div class="form-row">
+        <div class="field">
+          <label>Phone number (digits only)</label>
+          <input type="tel" id="phone_digits" placeholder="4085551234" maxlength="10" />
+        </div>
+        <div class="field">
+          <label>Carrier SMS gateway</label>
+          <select id="carrier">
+            <option value="tmomail.net">T-Mobile</option>
+            <option value="txt.att.net">AT&T</option>
+            <option value="vtext.com">Verizon</option>
+            <option value="sms.cricketwireless.net">Cricket</option>
+            <option value="messaging.sprintpcs.com">Sprint</option>
+            <option value="sms.myboostmobile.com">Boost</option>
+          </select>
+        </div>
+      </div>
+    </div>
+
+    <!-- Save -->
+    <div class="save-bar">
+      <span id="save-status"></span>
+      <div style="display:flex;gap:10px;">
+        <button class="btn btn-danger" onclick="optOut()">Opt out</button>
+        <button class="btn btn-primary" style="width:auto;" onclick="savePreferences()">Save preferences</button>
+      </div>
+    </div>
+
+  </div>
+</main>
+
+<script>
+const API = "http://127.0.0.1:5000/api";
+let authMode = "login";
+let accessToken = localStorage.getItem("dmv_token");
+
+// ── Init ──────────────────────────────────────────────────────
+window.onload = () => {
+  if (accessToken) showDashboard();
+};
+
+// ── Auth ──────────────────────────────────────────────────────
+function toggleAuthMode() {
+  authMode = authMode === "login" ? "signup" : "login";
+  document.getElementById("auth-title").textContent    = authMode === "login" ? "Sign in" : "Create account";
+  document.getElementById("auth-subtitle").textContent = authMode === "login"
+    ? "Get notified when DMV appointments open up near you."
+    : "Set up your DMV appointment alerts.";
+  document.getElementById("auth-btn").textContent        = authMode === "login" ? "Sign in" : "Sign up";
+  document.getElementById("auth-toggle-text").textContent = authMode === "login" ? "Don't have an account?" : "Already have an account?";
+  document.getElementById("auth-toggle-link").textContent = authMode === "login" ? "Sign up" : "Sign in";
+  clearAlert("alert-box");
+}
+
+async function handleAuth() {
+  const email    = document.getElementById("auth-email").value.trim();
+  const password = document.getElementById("auth-password").value;
+
+  if (!email || !password) {
+    showAlert("alert-box", "error", "Please enter your email and password.");
+    return;
+  }
+
+  const endpoint = authMode === "login" ? "/login" : "/signup";
+
+  try {
+    const res  = await fetch(API + endpoint, {
+      method:  "POST",
+      headers: { "Content-Type": "application/json" },
+      body:    JSON.stringify({ email, password })
+    });
+    const data = await res.json();
+
+    if (data.error) {
+      showAlert("alert-box", "error", data.error);
+      return;
+    }
+
+    if (authMode === "login") {
+      accessToken = data.access_token;
+      localStorage.setItem("dmv_token", accessToken);
+      showDashboard();
+    } else {
+      showAlert("alert-box", "success", "Account created! Check your email to confirm, then sign in.");
+      toggleAuthMode();
+    }
+  } catch (e) {
+    showAlert("alert-box", "error", "Could not connect to server.");
+  }
+}
+
+function logout() {
+  localStorage.removeItem("dmv_token");
+  accessToken = null;
+  document.getElementById("dashboard-view").classList.add("hidden");
+  document.getElementById("auth-view").classList.remove("hidden");
+  document.getElementById("user-info").classList.add("hidden");
+}
+
+// ── Dashboard ─────────────────────────────────────────────────
+async function showDashboard() {
+  document.getElementById("auth-view").classList.add("hidden");
+  document.getElementById("dashboard-view").classList.remove("hidden");
+  document.getElementById("user-info").classList.remove("hidden");
+  await loadPreferences();
+}
+
+async function loadPreferences() {
+  try {
+    const res  = await fetch(API + "/preferences", {
+      headers: { "Authorization": "Bearer " + accessToken }
+    });
+    const data = await res.json();
+    if (data.error) return;
+
+    // Populate fields
+    if (data.zip_code)    document.getElementById("zip_code").value    = data.zip_code;
+    if (data.radius_mi)   document.getElementById("radius_mi").value   = data.radius_mi;
+    if (data.phone_digits) document.getElementById("phone_digits").value = data.phone_digits;
+    if (data.time_from)   document.getElementById("time_from").value   = data.time_from;
+    if (data.time_to)     document.getElementById("time_to").value     = data.time_to;
+    if (data.within_days) document.getElementById("within_days").value = data.within_days;
+
+    // Selects
+    if (data.max_slots)          document.getElementById("max_slots").value          = data.max_slots;
+    if (data.check_interval_min) document.getElementById("check_interval_min").value = data.check_interval_min;
+    if (data.notify_frequency)   document.getElementById("notify_frequency").value   = data.notify_frequency;
+    if (data.carrier)            document.getElementById("carrier").value            = data.carrier;
+
+    // Pills
+    if (data.service_type)    activatePill("service-pills", data.service_type);
+    if (data.time_filter)   { activatePill("time-pills", data.time_filter); toggleCustomTime(); }
+    if (data.day_filter)    { activatePill("day-pills", data.day_filter); toggleCustomDays(); }
+
+    // Allowed days
+    if (data.allowed_days) {
+      const days = JSON.parse(data.allowed_days);
+      document.querySelectorAll("#day-select-pills .pill").forEach(p => {
+        p.classList.toggle("active", days.includes(parseInt(p.dataset.value)));
+      });
+    }
+
+  } catch(e) {}
+}
+
+async function savePreferences() {
+  const prefs = {
+    zip_code:           document.getElementById("zip_code").value,
+    radius_mi:          parseFloat(document.getElementById("radius_mi").value) || 25,
+    service_type:       getActivePill("service-pills"),
+    max_slots:          parseInt(document.getElementById("max_slots").value),
+    check_interval_min: parseInt(document.getElementById("check_interval_min").value),
+    notify_frequency:   document.getElementById("notify_frequency").value,
+    time_filter:        getActivePill("time-pills"),
+    time_from:          document.getElementById("time_from").value,
+    time_to:            document.getElementById("time_to").value,
+    day_filter:         getActivePill("day-pills"),
+    allowed_days:       getActiveDays(),
+    within_days:        document.getElementById("within_days").value || null,
+    phone_digits:       document.getElementById("phone_digits").value,
+    carrier:            document.getElementById("carrier").value,
+  };
+
+  try {
+    const res  = await fetch(API + "/preferences", {
+      method:  "POST",
+      headers: {
+        "Content-Type":  "application/json",
+        "Authorization": "Bearer " + accessToken
+      },
+      body: JSON.stringify(prefs)
+    });
+    const data = await res.json();
+
+    if (data.error) {
+      showAlert("dash-alert", "error", data.error);
+    } else {
+      document.getElementById("save-status").textContent = "✓ Saved";
+      setTimeout(() => document.getElementById("save-status").textContent = "", 3000);
+    }
+  } catch(e) {
+    showAlert("dash-alert", "error", "Could not save preferences.");
+  }
+}
+
+async function optOut() {
+  const phone = document.getElementById("phone_digits").value;
+  if (!phone) { showAlert("dash-alert", "error", "Enter your phone number first."); return; }
+
+  if (!confirm("Are you sure you want to opt out of all notifications?")) return;
+
+  try {
+    await fetch(API + "/optout", {
+      method:  "POST",
+      headers: { "Content-Type": "application/json" },
+      body:    JSON.stringify({ phone_digits: phone })
+    });
+    showAlert("dash-alert", "success", "You've been opted out. You won't receive any more notifications.");
+  } catch(e) {}
+}
+
+// ── Pill helpers ──────────────────────────────────────────────
+function selectPill(el, groupId) {
+  document.querySelectorAll(`#${groupId} .pill`).forEach(p => p.classList.remove("active"));
+  el.classList.add("active");
+}
+
+function activatePill(groupId, value) {
+  document.querySelectorAll(`#${groupId} .pill`).forEach(p => {
+    p.classList.toggle("active", p.dataset.value === value);
+  });
+}
+
+function getActivePill(groupId) {
+  const active = document.querySelector(`#${groupId} .pill.active`);
+  return active ? active.dataset.value : null;
+}
+
+function toggleDay(el) {
+  el.classList.toggle("active");
+}
+
+function getActiveDays() {
+  return Array.from(document.querySelectorAll("#day-select-pills .pill.active"))
+    .map(p => parseInt(p.dataset.value));
+}
+
+function toggleCustomTime() {
+  const val = getActivePill("time-pills");
+  document.getElementById("custom-time-fields").classList.toggle("hidden", val !== "custom");
+}
+
+function toggleCustomDays() {
+  const val = getActivePill("day-pills");
+  document.getElementById("custom-day-fields").classList.toggle("hidden", val !== "custom");
+}
+
+// ── Alert helpers ─────────────────────────────────────────────
+function showAlert(id, type, msg) {
+  const el = document.getElementById(id);
+  el.className = `alert alert-${type}`;
+  el.textContent = msg;
+  el.classList.remove("hidden");
+}
+
+function clearAlert(id) {
+  const el = document.getElementById(id);
+  el.classList.add("hidden");
+}
+
+// Enter key on auth fields
+document.addEventListener("keydown", e => {
+  if (e.key === "Enter" && document.getElementById("auth-view") && !document.getElementById("auth-view").classList.contains("hidden")) {
+    handleAuth();
+  }
+});
+</script>
+</body>
+</html>

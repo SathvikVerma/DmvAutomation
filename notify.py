@@ -46,33 +46,48 @@ def _smtp_send(to_address: str, subject: str, body: str) -> bool:
 
 
 def send_sms(slot, phone_digits: str = None, carrier: str = None) -> bool:
-    """Send SMS via email-to-text carrier gateway."""
-    digits  = phone_digits or PHONE_DIGITS
-    gateway = carrier or CARRIER
+    """Send push notification via Pushover."""
+    import requests as req
 
-    if not digits:
-        print("  ✗ No phone number configured")
+    PUSHOVER_USER  = os.getenv("PUSHOVER_USER_KEY")
+    PUSHOVER_TOKEN = os.getenv("PUSHOVER_API_TOKEN")
+
+    if not PUSHOVER_USER or not PUSHOVER_TOKEN:
+        print("  ✗ Pushover credentials missing in .env")
         return False
 
     from database import is_opted_out
-    if is_opted_out(digits):
-        print(f"  SMS skipped — {digits} has opted out")
+    digits = phone_digits or os.getenv("NOTIFY_PHONE_DIGITS")
+    if digits and is_opted_out(digits):
+        print(f"  Notification skipped — opted out")
         return False
 
-    sms_address = f"{digits}@{gateway}"
-
-    # Keep SMS short — carrier gateways truncate long messages
-    body = (
-        f"DMV Slot Alert\n"
+    message = (
         f"{slot.display_datetime}\n"
         f"{slot.office_name} ({slot.distance_mi} mi)\n"
-        f"Book: {slot.booking_url}"
+        f"Tap to book"
     )
 
-    success = _smtp_send(sms_address, "", body)
-    if success:
-        print(f"  ✓ SMS sent to {sms_address}")
-    return success
+    try:
+        resp = req.post("https://api.pushover.net/1/messages.json", data={
+            "token":   PUSHOVER_TOKEN,
+            "user":    PUSHOVER_USER,
+            "title":   "DMV Slot Available",
+            "message": message,
+            "url":     slot.booking_url,
+            "url_title": "Book this slot",
+            "priority": 1,
+        })
+        result = resp.json()
+        if result.get("status") == 1:
+            print(f"  ✓ Push notification sent!")
+            return True
+        else:
+            print(f"  ✗ Pushover failed: {result}")
+            return False
+    except Exception as e:
+        print(f"  ✗ Pushover error: {e}")
+        return False
 
 
 def send_email(slot, to_email: str = None) -> bool:
@@ -126,10 +141,6 @@ def send_email(slot, to_email: str = None) -> bool:
 
 
 def notify_new_slots(slots: list, prefs: dict = None) -> int:
-    """
-    Filter to new slots only, apply user prefs, send notifications.
-    Returns count of notifications sent.
-    """
     from database import (
         init_db, save_slot, mark_notified, is_new_slot,
         can_notify_now, update_last_notified
@@ -145,12 +156,10 @@ def notify_new_slots(slots: list, prefs: dict = None) -> int:
     phone_digits     = prefs.get("phone_digits", PHONE_DIGITS)
     email            = prefs.get("email", NOTIFY_EMAIL)
 
-    # Check notification frequency throttle
     if phone_digits and not can_notify_now(phone_digits, notify_frequency):
         print(f"  Skipping — {notify_frequency} limit not yet reached")
         return 0
 
-    # Sort by date then time, pick only new slots
     new_slots = []
     for slot in sorted(slots, key=lambda s: (s.slot_date, s.slot_time)):
         if is_new_slot(slot.slot_key):
@@ -164,16 +173,14 @@ def notify_new_slots(slots: list, prefs: dict = None) -> int:
 
     sent_count = 0
     for slot in new_slots:
-    print(f"\n  New slot: {slot.display_datetime} at {slot.office_name}")
-    save_slot(slot)
-
-    sms_sent   = send_sms(slot, phone_digits=phone_digits)
-    time.sleep(2)  # wait 2 seconds between SMS sends
-    email_sent = send_email(slot, to_email=email)
-
-    if sms_sent or email_sent:
-        mark_notified(slot.slot_key)
-        sent_count += 1
+        print(f"\n  New slot: {slot.display_datetime} at {slot.office_name}")
+        save_slot(slot)
+        sms_sent = send_sms(slot, phone_digits=phone_digits)
+        time.sleep(2)
+        email_sent = send_email(slot, to_email=email)
+        if sms_sent or email_sent:
+            mark_notified(slot.slot_key)
+            sent_count += 1
 
     if sent_count > 0 and phone_digits:
         update_last_notified(phone_digits)
