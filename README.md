@@ -1,147 +1,190 @@
-# DMV Appointment Notifier
+# DMV Notifier
 
-Automatically monitors the California DMV appointment system and sends SMS + email notifications when slots open up near you.
+A web app that monitors the California DMV appointment system and sends instant notifications when slots open up near you — filtered by location, time, day, and service type.
 
-## Features
+## Live Demo
 
-- Monitors all DMV service types (Drive Test, Real ID, Knowledge Test, etc.)
+[dmvautomation-production.up.railway.app](https://dmvautomation-production.up.railway.app)
+
+---
+
+## What it does
+
+- Monitors DMV appointment availability in real time
 - Filters by zip code and radius
-- Filter appointments by day of week (e.g. only Mon/Wed/Fri)
-- Filter appointments by time of day (morning, afternoon, or custom range)
-- Limit to appointments within the next N days
-- Sends SMS via carrier email gateway (no paid SMS service needed)
-- Sends formatted HTML email with one-click booking link
+- Filters by service type (Drive Test, Real ID, Knowledge Test, etc.)
+- Filters by day of week and time of day
+- Sends push notifications via Pushover app
+- Sends formatted HTML emails with a one-click booking link
 - Deduplication — never sends the same slot twice
-- Opt-out support — reply STOP to unsubscribe
-- Configurable notification frequency (realtime, once/day, twice/day)
-- Configurable check interval (5 min, 30 min, 1 hr, 5 hr)
+- Opt-out support
+- User accounts with saved preferences
 
-## Setup
+---
 
-### 1. Clone and install
+## Tech stack
 
-```bash
-git clone https://github.com/yourusername/dmv-notifier.git
-cd dmv-notifier
-python -m venv venv
-source venv/bin/activate
-pip install requests playwright geopy python-dotenv certifi
-playwright install chromium
-```
+| Layer | Technology |
+|---|---|
+| Backend | Python, Flask |
+| Scraper | Playwright (headless Chromium) |
+| Database | SQLite (local) + Supabase (cloud) |
+| Auth | Supabase Auth |
+| Push notifications | Pushover |
+| Email | Gmail SMTP |
+| Frontend | HTML / CSS / JavaScript |
+| Hosting | Railway |
 
-### 2. Configure your `.env`
+---
 
-```env
-# DMV preferences
-DMV_LICENSE=A1234567
-DMV_DOB=01/15/1990
-DMV_ZIP=95035
-DMV_RADIUS=25
-DMV_SERVICE_TYPE=automobile
+## How it works
 
-# Notification contacts
-NOTIFY_PHONE_DIGITS=4085551234
-NOTIFY_EMAIL=you@gmail.com
-CARRIER=tmomail.net
+The California DMV does not have a public API. The scraper uses Playwright to walk through the booking flow in a headless browser, intercepts the internal JSON endpoints, and extracts available appointment dates and times. It then filters results against each user's preferences and sends notifications for any new slots found.
 
-# Gmail SMTP (for sending SMS + email)
-GMAIL_ADDRESS=you@gmail.com
-GMAIL_APP_PASSWORD=xxxx xxxx xxxx xxxx
-
-# Scheduling
-CHECK_INTERVAL_MINUTES=5
-MAX_SLOTS=3
-NOTIFY_FREQUENCY=realtime
-
-# Filters (optional)
-TIME_FILTER=all
-TIME_FROM=00:00
-TIME_TO=23:59
-DAY_FILTER=all
-ALLOWED_DAYS=[0,1,2,3,4]
-# WITHIN_DAYS=14
-```
-
-### 3. Gmail app password
-
-1. Go to myaccount.google.com → Security
-2. Enable 2-Step Verification if not already on
-3. Search for "App passwords" → create one named "DMV Notifier"
-4. Paste the 16-character code as `GMAIL_APP_PASSWORD`
-
-### 4. Carrier gateway
-
-Set `CARRIER` to your phone carrier's SMS gateway:
-
-| Carrier   | Gateway              |
-|-----------|----------------------|
-| T-Mobile  | tmomail.net          |
-| AT&T      | txt.att.net          |
-| Verizon   | vtext.com            |
-| Cricket   | sms.cricketwireless.net |
-| Mint      | tmomail.net          |
-
-## Service types
-
-Set `DMV_SERVICE_TYPE` to one of:
-
-| Value       | Description                    |
-|-------------|--------------------------------|
-| automobile  | Automobile Drive Test          |
-| commercial  | Commercial Drive Test          |
-| motorcycle  | Motorcycle Drive Test          |
-| realid_cdl  | Real ID & CDL                  |
-| knowledge   | Knowledge Test Re-evaluation   |
-
-## Filter options
-
-### Time filter (`TIME_FILTER`)
-- `all` — any time
-- `morning` — before 12:00 PM
-- `afternoon` — 12:00 PM and later
-- `custom` — set `TIME_FROM` and `TIME_TO` (24hr format, e.g. `13:00`)
-
-### Day filter (`DAY_FILTER`)
-- `all` — any day
-- `weekdays` — Monday through Friday only
-- `custom` — set `ALLOWED_DAYS` as JSON array of weekday numbers (0=Mon, 6=Sun)
-
-### Within days (`WITHIN_DAYS`)
-Set to a number to only notify about appointments within the next N days.
-Leave unset for no limit.
-
-## Running
-
-```bash
-python main.py
-```
-
-A browser window will open. Click through the DMV booking flow:
-1. Select your service type
-2. Enter license number and date of birth
-3. Click Make an Appointment
-4. Enter your zip code
-5. Click Select Location on any office
-
-The scraper captures the session data automatically and takes over from there.
+---
 
 ## Project structure
 
 ```
 dmv-notifier/
-├── main.py         # entry point and scheduler
-├── scraper.py      # DMV scraping (dates + times)
-├── geo_filter.py   # radius filtering by zip code
-├── database.py     # SQLite operations
-├── notify.py       # SMS and email notifications
-├── config.py       # service types, constants, defaults
-├── .env            # your credentials (never commit this)
-└── slots.db        # auto-created SQLite database
+├── app.py              # Flask backend — routes, auth, scheduler
+├── scraper.py          # DMV scraper — dates and times
+├── geo_filter.py       # Radius filtering by zip code
+├── database.py         # SQLite operations
+├── notify.py           # Pushover and email notifications
+├── config.py           # Service types, constants, defaults
+├── main.py             # Local entry point and scheduler
+├── frontend/
+│   └── index.html      # Single-page web app
+├── Procfile            # Railway start command
+├── railway.json        # Railway config
+├── requirements.txt    # Python dependencies
+└── .env.example        # Environment variable template
 ```
+
+---
+
+## Local setup
+
+### 1. Clone and install
+
+```bash
+git clone https://github.com/SathvikVerma/DmvAutomation.git
+cd DmvAutomation
+python -m venv venv
+source venv/bin/activate
+pip install -r requirements.txt
+playwright install chromium
+```
+
+### 2. Configure your `.env`
+
+Copy `.env.example` to `.env` and fill in your values:
+
+```
+# DMV credentials
+DMV_LICENSE=your_license_number
+DMV_DOB=MM/DD/YYYY
+
+# Location
+DMV_ZIP=your_zip_code
+DMV_RADIUS=25
+
+# Gmail — used to send email notifications
+GMAIL_ADDRESS=you@gmail.com
+GMAIL_APP_PASSWORD=xxxx xxxx xxxx xxxx
+
+# Notification targets
+NOTIFY_EMAIL=you@gmail.com
+
+# Pushover — used to send push notifications to your phone
+PUSHOVER_USER_KEY=your_pushover_user_key
+PUSHOVER_API_TOKEN=your_pushover_api_token
+
+# Supabase
+SUPABASE_URL=https://your-project.supabase.co
+SUPABASE_ANON_KEY=your_anon_key
+SUPABASE_SERVICE_KEY=your_service_key
+```
+
+### 3. Run locally
+
+```bash
+python app.py
+```
+
+Open `http://127.0.0.1:5000` in your browser.
+
+---
+
+## Gmail app password
+
+Standard Gmail passwords won't work — you need an app-specific password:
+
+1. Go to [myaccount.google.com](https://myaccount.google.com) → Security
+2. Enable 2-Step Verification if not already on
+3. Search for **App passwords** → create one named `DMV Notifier`
+4. Paste the 16-character code as `GMAIL_APP_PASSWORD`
+
+---
+
+## Pushover setup
+
+Pushover sends instant push notifications to your phone — no carrier needed.
+
+1. Download the Pushover app at [pushover.net](https://pushover.net)
+2. Create an account and copy your **User Key** from the dashboard
+3. Create a new application, name it `DMV Notifier`, copy the **API Token**
+4. Add both to your `.env` and to the Notifications section in the web dashboard
+
+---
+
+## Service types
+
+| Value | Description |
+|---|---|
+| `automobile` | Automobile Drive Test |
+| `commercial` | Commercial Drive Test |
+| `motorcycle` | Motorcycle Drive Test |
+| `realid_cdl` | Real ID & CDL |
+| `knowledge` | Knowledge Test Re-evaluation |
+
+---
+
+## Appointment filters
+
+**Time**
+- Any time
+- Before 12 pm (morning)
+- After 12 pm (afternoon)
+- Custom range
+
+**Day**
+- Any day
+- Weekdays only
+- Custom days (pick specific days of the week)
+- Limit to next N days
+
+**Slots per alert** — choose how many slots to receive per notification (1, 2, 3, 5, 10, or custom)
+
+**Check frequency** — how often to scan for new slots (5 min, 15 min, 30 min, 1 hr, 5 hr, or custom)
+
+**Notify frequency** — how often to actually send alerts (every new slot, once a day, twice a day)
+
+---
+
+## Deploying to Railway
+
+1. Push repo to GitHub
+2. Connect to [railway.app](https://railway.app) → New Project → Deploy from GitHub
+3. Add all environment variables in the Variables tab
+4. Generate a public domain in Settings → Networking
+
+---
 
 ## Roadmap
 
-- [ ] Web UI for managing preferences without editing .env
-- [ ] Multi-user support
-- [ ] Support for all California DMV offices (currently Bay Area only)
-- [ ] Automatic session renewal without manual browser interaction
+- [ ] Automated DMV login using stored credentials (no manual browser step needed)
+- [ ] Support for all California DMV offices statewide
+- [ ] Fully multi-user with one always-running server session
+- [ ] Mobile-optimized UI
