@@ -4,410 +4,136 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>DMV Notifier</title>
-<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
 <style>
-  :root {
-    --bg: #0d0f12;
-    --surface: #161a1f;
-    --surface2: #1e2329;
-    --border: #2a2f38;
-    --accent: #3b82f6;
-    --accent-dim: #1d4ed8;
-    --green: #22c55e;
-    --red: #ef4444;
-    --text: #e8eaed;
-    --text-dim: #8b949e;
-    --mono: 'DM Mono', monospace;
-    --sans: 'DM Sans', sans-serif;
-  }
-
-  * { box-sizing: border-box; margin: 0; padding: 0; }
-
-  body {
-    background: var(--bg);
-    color: var(--text);
-    font-family: var(--sans);
-    min-height: 100vh;
-    display: flex;
-    flex-direction: column;
-  }
-
-  /* ── Header ── */
-  header {
-    padding: 20px 32px;
-    border-bottom: 1px solid var(--border);
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-  }
-
-  .logo {
-    font-family: var(--mono);
-    font-size: 15px;
-    font-weight: 500;
-    color: var(--accent);
-    letter-spacing: 0.05em;
-  }
-
-  .logo span { color: var(--text-dim); }
-
-  #user-info {
-    font-size: 13px;
-    color: var(--text-dim);
-    display: flex;
-    align-items: center;
-    gap: 12px;
-  }
-
-  /* ── Main layout ── */
-  main {
-    flex: 1;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    padding: 40px 20px;
-  }
-
-  /* ── Auth card ── */
-  .auth-card {
-    width: 100%;
-    max-width: 400px;
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: 12px;
-    padding: 36px;
-  }
-
-  .auth-card h1 {
-    font-size: 22px;
-    font-weight: 600;
-    margin-bottom: 6px;
-  }
-
-  .auth-card p {
-    font-size: 14px;
-    color: var(--text-dim);
-    margin-bottom: 28px;
-  }
-
-  /* ── Dashboard ── */
-  .dashboard {
-    width: 100%;
-    max-width: 760px;
-  }
-
-  .dashboard-header {
-    margin-bottom: 28px;
-  }
-
-  .dashboard-header h1 {
-    font-size: 24px;
-    font-weight: 600;
-    margin-bottom: 4px;
-  }
-
-  .dashboard-header p {
-    font-size: 14px;
-    color: var(--text-dim);
-  }
-
-  .card {
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: 12px;
-    padding: 24px;
-    margin-bottom: 16px;
-  }
-
-  .card-title {
-    font-size: 12px;
-    font-weight: 500;
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
-    color: var(--text-dim);
-    margin-bottom: 20px;
-  }
-
-  /* ── Form elements ── */
-  .form-row {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 14px;
-    margin-bottom: 14px;
-  }
-
-  .form-row.single { grid-template-columns: 1fr; }
-  .form-row.triple { grid-template-columns: 1fr 1fr 1fr; }
-
-  .field {
-    display: flex;
-    flex-direction: column;
-    gap: 6px;
-  }
-
-  label {
-    font-size: 12px;
-    font-weight: 500;
-    color: var(--text-dim);
-    letter-spacing: 0.04em;
-  }
-
-  input, select {
-    background: var(--surface2);
-    border: 1px solid var(--border);
-    border-radius: 8px;
-    padding: 10px 12px;
-    font-size: 14px;
-    font-family: var(--sans);
-    color: var(--text);
-    outline: none;
-    transition: border-color 0.15s;
-    width: 100%;
-  }
-
-  input:focus, select:focus {
-    border-color: var(--accent);
-  }
-
-  select option { background: var(--surface2); }
-
-  /* ── Pill toggles ── */
-  .pill-group {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 8px;
-  }
-
-  .pill {
-    padding: 6px 14px;
-    border-radius: 20px;
-    border: 1px solid var(--border);
-    background: var(--surface2);
-    font-size: 13px;
-    color: var(--text-dim);
-    cursor: pointer;
-    transition: all 0.15s;
-    user-select: none;
-  }
-
-  .pill:hover { border-color: var(--accent); color: var(--text); }
-
-  .pill.active {
-    background: var(--accent);
-    border-color: var(--accent);
-    color: white;
-  }
-
-  /* ── Buttons ── */
-  .btn {
-    padding: 10px 20px;
-    border-radius: 8px;
-    font-size: 14px;
-    font-weight: 500;
-    font-family: var(--sans);
-    cursor: pointer;
-    border: none;
-    transition: all 0.15s;
-  }
-
-  .btn-primary {
-    background: var(--accent);
-    color: white;
-    width: 100%;
-    padding: 12px;
-    margin-top: 8px;
-  }
-
-  .btn-primary:hover { background: var(--accent-dim); }
-
-  .btn-secondary {
-    background: var(--surface2);
-    color: var(--text-dim);
-    border: 1px solid var(--border);
-  }
-
-  .btn-secondary:hover { color: var(--text); border-color: var(--text-dim); }
-
-  .btn-danger {
-    background: transparent;
-    color: var(--red);
-    border: 1px solid var(--red);
-    font-size: 13px;
-    padding: 7px 14px;
-  }
-
-  /* ── Switch toggle ── */
-  .switch-row {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 10px 0;
-    border-bottom: 1px solid var(--border);
-  }
-
-  .switch-row:last-child { border-bottom: none; }
-
-  .switch-label { font-size: 14px; }
-  .switch-desc { font-size: 12px; color: var(--text-dim); margin-top: 2px; }
-
-  .switch {
-    position: relative;
-    width: 40px;
-    height: 22px;
-    flex-shrink: 0;
-  }
-
-  .switch input { opacity: 0; width: 0; height: 0; position: absolute; }
-
-  .switch-track {
-    position: absolute;
-    inset: 0;
-    background: var(--border);
-    border-radius: 11px;
-    cursor: pointer;
-    transition: background 0.2s;
-  }
-
-  .switch input:checked + .switch-track { background: var(--accent); }
-
-  .switch-thumb {
-    position: absolute;
-    top: 3px;
-    left: 3px;
-    width: 16px;
-    height: 16px;
-    background: white;
-    border-radius: 50%;
-    pointer-events: none;
-    transition: transform 0.2s;
-  }
-
-  .switch input:checked ~ .switch-thumb { transform: translateX(18px); }
-
-  /* ── Status / alerts ── */
-  .alert {
-    padding: 10px 14px;
-    border-radius: 8px;
-    font-size: 13px;
-    margin-bottom: 16px;
-  }
-
-  .alert-error { background: rgba(239,68,68,0.1); border: 1px solid rgba(239,68,68,0.3); color: #fca5a5; }
-  .alert-success { background: rgba(34,197,94,0.1); border: 1px solid rgba(34,197,94,0.3); color: #86efac; }
-
-  /* ── Auth toggle ── */
-  .auth-toggle {
-    text-align: center;
-    margin-top: 20px;
-    font-size: 13px;
-    color: var(--text-dim);
-  }
-
-  .auth-toggle a {
-    color: var(--accent);
-    cursor: pointer;
-    text-decoration: none;
-  }
-
-  /* ── Divider ── */
-  .divider {
-    height: 1px;
-    background: var(--border);
-    margin: 20px 0;
-  }
-
-  /* ── Status dot ── */
-  .status-dot {
-    display: inline-block;
-    width: 8px;
-    height: 8px;
-    border-radius: 50%;
-    background: var(--green);
-    margin-right: 6px;
-    animation: pulse 2s infinite;
-  }
-
-  @keyframes pulse {
-    0%, 100% { opacity: 1; }
-    50% { opacity: 0.4; }
-  }
-
-  .hidden { display: none !important; }
-
-  /* ── Conditional fields ── */
-  #custom-time-fields, #custom-day-fields { margin-top: 14px; }
-
-  /* ── Save bar ── */
-  .save-bar {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    margin-top: 8px;
-  }
-
-  #save-status {
-    font-size: 13px;
-    color: var(--green);
-  }
+:root {
+  --bg:#08090b;--surface:#0f1117;--surface2:#161b24;--surface3:#1c2230;
+  --border:#222a38;--border2:#2d3748;--accent:#4f8ef7;--accent2:#2563eb;
+  --accent-glow:rgba(79,142,247,0.15);--green:#34d399;--green-dim:rgba(52,211,153,0.1);
+  --red:#f87171;--red-dim:rgba(248,113,113,0.1);--text:#e2e8f0;--text-dim:#64748b;
+  --text-mid:#94a3b8;--mono:'Space Mono',monospace;--sans:'Space Grotesk',sans-serif;
+  --radius:10px;--radius-lg:16px;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{background:var(--bg);color:var(--text);font-family:var(--sans);min-height:100vh;display:flex;flex-direction:column;background-image:radial-gradient(ellipse 80% 50% at 50% -20%,rgba(79,142,247,0.08) 0%,transparent 60%);}
+header{padding:18px 32px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;backdrop-filter:blur(12px);position:sticky;top:0;z-index:10;background:rgba(8,9,11,0.85);}
+.logo{font-family:var(--mono);font-size:14px;color:var(--accent);letter-spacing:0.06em;display:flex;align-items:center;gap:8px;}
+.logo-dot{width:6px;height:6px;border-radius:50%;background:var(--green);animation:blink 2.5s ease-in-out infinite;}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:0.3}}
+.header-right{display:flex;align-items:center;gap:12px;font-size:13px;color:var(--text-dim);}
+.badge{display:inline-flex;align-items:center;gap:5px;padding:4px 10px;border-radius:20px;font-size:12px;font-weight:500;background:var(--green-dim);color:var(--green);border:1px solid rgba(52,211,153,0.2);}
+main{flex:1;display:flex;align-items:center;justify-content:center;padding:48px 20px;}
+.auth-wrap{width:100%;max-width:420px;animation:fadeUp 0.4s ease;}
+@keyframes fadeUp{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:translateY(0)}}
+.auth-eyebrow{font-family:var(--mono);font-size:11px;color:var(--accent);letter-spacing:0.1em;text-transform:uppercase;margin-bottom:12px;}
+.auth-headline{font-size:28px;font-weight:700;line-height:1.2;margin-bottom:8px;background:linear-gradient(135deg,var(--text) 60%,var(--accent));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;}
+.auth-sub{font-size:14px;color:var(--text-mid);margin-bottom:32px;line-height:1.6;}
+.auth-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-lg);padding:28px;}
+.dashboard{width:100%;max-width:780px;animation:fadeUp 0.3s ease;}
+.dash-header{margin-bottom:32px;}
+.dash-title{font-size:22px;font-weight:700;margin-bottom:4px;}
+.dash-sub{font-size:14px;color:var(--text-mid);}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-lg);padding:22px 24px;margin-bottom:12px;transition:border-color 0.2s;}
+.card:hover{border-color:var(--border2);}
+.card-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:18px;}
+.card-label{font-family:var(--mono);font-size:10px;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;color:var(--text-dim);}
+.row2{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px;}
+.row3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-bottom:12px;}
+.row1{display:grid;grid-template-columns:1fr;gap:12px;margin-bottom:12px;}
+.row2:last-child,.row3:last-child,.row1:last-child{margin-bottom:0;}
+.field{display:flex;flex-direction:column;gap:6px;}
+.field-label{font-size:11px;font-weight:600;color:var(--text-dim);letter-spacing:0.05em;text-transform:uppercase;}
+input[type="text"],input[type="email"],input[type="password"],input[type="number"],input[type="time"],input[type="tel"],select{background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius);padding:10px 14px;font-size:14px;font-family:var(--sans);color:var(--text);outline:none;transition:border-color 0.15s,box-shadow 0.15s;width:100%;appearance:none;-webkit-appearance:none;}
+input:focus,select:focus{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-glow);}
+input::placeholder{color:var(--text-dim);}
+select{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%2364748b' stroke-width='2'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 12px center;padding-right:36px;}
+select option{background:var(--surface2);}
+.pills{display:flex;flex-wrap:wrap;gap:7px;}
+.pill{padding:6px 13px;border-radius:6px;border:1px solid var(--border);background:var(--surface2);font-size:13px;font-weight:500;color:var(--text-mid);cursor:pointer;transition:all 0.15s;user-select:none;font-family:var(--sans);}
+.pill:hover{border-color:var(--accent);color:var(--text);background:var(--surface3);}
+.pill.on{background:rgba(79,142,247,0.12);border-color:rgba(79,142,247,0.4);color:var(--accent);}
+.toggle-row{display:flex;align-items:center;justify-content:space-between;padding:12px 0;border-bottom:1px solid var(--border);}
+.toggle-row:last-child{border-bottom:none;padding-bottom:0;}
+.toggle-row:first-child{padding-top:0;}
+.toggle-info .toggle-name{font-size:14px;font-weight:500;}
+.toggle-info .toggle-desc{font-size:12px;color:var(--text-dim);margin-top:2px;}
+.tog{position:relative;width:42px;height:24px;flex-shrink:0;}
+.tog input{opacity:0;width:0;height:0;position:absolute;}
+.tog-track{position:absolute;inset:0;background:var(--border2);border-radius:12px;cursor:pointer;transition:background 0.2s;}
+.tog input:checked+.tog-track{background:var(--accent);}
+.tog-thumb{position:absolute;top:3px;left:3px;width:18px;height:18px;background:white;border-radius:50%;pointer-events:none;transition:transform 0.2s;box-shadow:0 1px 4px rgba(0,0,0,0.3);}
+.tog input:checked~.tog-thumb{transform:translateX(18px);}
+.btn{padding:10px 20px;border-radius:var(--radius);font-size:14px;font-weight:600;font-family:var(--sans);cursor:pointer;border:none;transition:all 0.15s;display:inline-flex;align-items:center;gap:7px;}
+.btn-primary{background:var(--accent);color:white;width:100%;justify-content:center;padding:12px;margin-top:6px;}
+.btn-primary:hover{background:var(--accent2);transform:translateY(-1px);}
+.btn-ghost{background:transparent;color:var(--text-dim);border:1px solid var(--border);font-size:13px;padding:8px 16px;}
+.btn-ghost:hover{color:var(--text);border-color:var(--border2);}
+.btn-danger{background:var(--red-dim);color:var(--red);border:1px solid rgba(248,113,113,0.2);font-size:13px;padding:8px 16px;}
+.btn-danger:hover{background:rgba(248,113,113,0.15);}
+.alert{padding:11px 14px;border-radius:var(--radius);font-size:13px;margin-bottom:16px;}
+.alert-error{background:var(--red-dim);border:1px solid rgba(248,113,113,0.25);color:#fca5a5;}
+.alert-success{background:var(--green-dim);border:1px solid rgba(52,211,153,0.25);color:#6ee7b7;}
+.auth-switch{text-align:center;margin-top:18px;font-size:13px;color:var(--text-dim);}
+.auth-switch a{color:var(--accent);cursor:pointer;text-decoration:none;font-weight:500;}
+.save-bar{display:flex;align-items:center;justify-content:flex-end;gap:10px;margin-top:4px;padding-top:4px;}
+.save-msg{font-size:13px;color:var(--green);margin-right:auto;font-weight:500;}
+.hint{font-size:12px;color:var(--text-dim);margin-top:8px;line-height:1.5;}
+.hint a{color:var(--accent);text-decoration:none;}
+.hidden{display:none!important;}
+.cond-field{margin-top:12px;}
 </style>
 </head>
 <body>
-
 <header>
-  <div class="logo">dmv<span>/</span>notifier</div>
-  <div id="user-info" class="hidden">
-    <span><span class="status-dot"></span>active</span>
-    <button class="btn btn-secondary" onclick="logout()" style="padding:6px 14px;font-size:13px;">Sign out</button>
+  <div class="logo"><div class="logo-dot"></div>dmv/notifier</div>
+  <div class="header-right" id="user-info" style="display:none;">
+    <span class="badge">● active</span>
+    <button class="btn btn-ghost" onclick="logout()">Sign out</button>
   </div>
 </header>
+<main>
 
-<main id="main-content">
-
-  <!-- ── Auth view ── -->
-  <div id="auth-view" class="auth-card">
-    <h1 id="auth-title">Sign in</h1>
-    <p id="auth-subtitle">Get notified when DMV appointments open up near you.</p>
-
-    <div id="alert-box" class="hidden"></div>
-
-    <div class="field" style="margin-bottom:14px;">
-      <label>Email</label>
-      <input type="email" id="auth-email" placeholder="you@example.com" />
-    </div>
-
-    <div class="field" style="margin-bottom:6px;">
-      <label>Password</label>
-      <input type="password" id="auth-password" placeholder="••••••••" />
-    </div>
-
-    <button class="btn btn-primary" id="auth-btn" onclick="handleAuth()">Sign in</button>
-
-    <div class="auth-toggle">
-      <span id="auth-toggle-text">Don't have an account?</span>
-      <a onclick="toggleAuthMode()"> <span id="auth-toggle-link">Sign up</span></a>
+  <!-- Auth -->
+  <div id="auth-view" class="auth-wrap">
+    <div class="auth-eyebrow">California DMV</div>
+    <h1 class="auth-headline">Never miss an open slot.</h1>
+    <p class="auth-sub">Get instant notifications when a DMV appointment opens near you — filtered by location, time, and day.</p>
+    <div class="auth-card">
+      <div id="alert-box" class="hidden"></div>
+      <div class="field" style="margin-bottom:12px;">
+        <label class="field-label">Email</label>
+        <input type="email" id="auth-email" placeholder="you@example.com" />
+      </div>
+      <div class="field" style="margin-bottom:4px;">
+        <label class="field-label">Password</label>
+        <input type="password" id="auth-password" placeholder="••••••••" />
+      </div>
+      <button class="btn btn-primary" onclick="handleAuth()"><span id="auth-btn-text">Sign in</span></button>
+      <div class="auth-switch">
+        <span id="auth-toggle-text">Don't have an account?</span>
+        <a onclick="toggleAuthMode()"><span id="auth-toggle-link"> Sign up</span></a>
+      </div>
     </div>
   </div>
 
-  <!-- ── Dashboard view ── -->
+  <!-- Dashboard -->
   <div id="dashboard-view" class="dashboard hidden">
-
-    <div class="dashboard-header">
-      <h1>Your preferences</h1>
-      <p>Configure your DMV appointment alerts below.</p>
+    <div class="dash-header">
+      <div class="dash-title">Notification settings</div>
+      <div class="dash-sub">Your appointments, your schedule.</div>
     </div>
-
     <div id="dash-alert" class="hidden"></div>
 
     <!-- Location -->
     <div class="card">
-      <div class="card-title">Location</div>
-      <div class="form-row">
+      <div class="card-header"><span class="card-label">Location</span></div>
+      <div class="row2">
         <div class="field">
-          <label>Zip code</label>
-          <input type="text" id="zip_code" placeholder="95035" maxlength="5" />
+          <label class="field-label">Zip code</label>
+          <input type="text" id="zip_code" placeholder="e.g. 90210" maxlength="5" />
         </div>
         <div class="field">
-          <label>Radius (miles)</label>
+          <label class="field-label">Radius (miles)</label>
           <input type="number" id="radius_mi" placeholder="25" min="1" max="100" />
         </div>
       </div>
@@ -415,89 +141,94 @@
 
     <!-- Service type -->
     <div class="card">
-      <div class="card-title">Service type</div>
-      <div class="pill-group" id="service-pills">
-        <div class="pill active" data-value="automobile" onclick="selectPill(this, 'service-pills')">Automobile</div>
-        <div class="pill" data-value="commercial" onclick="selectPill(this, 'service-pills')">Commercial</div>
-        <div class="pill" data-value="motorcycle" onclick="selectPill(this, 'service-pills')">Motorcycle</div>
-        <div class="pill" data-value="realid_cdl" onclick="selectPill(this, 'service-pills')">Real ID & CDL</div>
-        <div class="pill" data-value="knowledge" onclick="selectPill(this, 'service-pills')">Knowledge Test</div>
+      <div class="card-header"><span class="card-label">Service type</span></div>
+      <div class="pills" id="service-pills">
+        <div class="pill on"  data-value="automobile" onclick="onePill(this,'service-pills')">Automobile</div>
+        <div class="pill"     data-value="commercial" onclick="onePill(this,'service-pills')">Commercial</div>
+        <div class="pill"     data-value="motorcycle" onclick="onePill(this,'service-pills')">Motorcycle</div>
+        <div class="pill"     data-value="realid_cdl" onclick="onePill(this,'service-pills')">Real ID &amp; CDL</div>
+        <div class="pill"     data-value="knowledge"  onclick="onePill(this,'service-pills')">Knowledge Test</div>
       </div>
     </div>
 
     <!-- Time filter -->
     <div class="card">
-      <div class="card-title">Time preference</div>
-      <div class="pill-group" id="time-pills">
-        <div class="pill active" data-value="all" onclick="selectPill(this, 'time-pills'); toggleCustomTime()">Any time</div>
-        <div class="pill" data-value="morning" onclick="selectPill(this, 'time-pills'); toggleCustomTime()">Morning (before 12pm)</div>
-        <div class="pill" data-value="afternoon" onclick="selectPill(this, 'time-pills'); toggleCustomTime()">Afternoon (12pm+)</div>
-        <div class="pill" data-value="custom" onclick="selectPill(this, 'time-pills'); toggleCustomTime()">Custom range</div>
+      <div class="card-header"><span class="card-label">Appointment time</span></div>
+      <div class="pills" id="time-pills">
+        <div class="pill on" data-value="all"       onclick="onePill(this,'time-pills');toggleCond('custom-time','custom','time-pills')">Any time</div>
+        <div class="pill"    data-value="morning"   onclick="onePill(this,'time-pills');toggleCond('custom-time','custom','time-pills')">Before 12 pm</div>
+        <div class="pill"    data-value="afternoon" onclick="onePill(this,'time-pills');toggleCond('custom-time','custom','time-pills')">After 12 pm</div>
+        <div class="pill"    data-value="custom"    onclick="onePill(this,'time-pills');toggleCond('custom-time','custom','time-pills')">Custom range</div>
       </div>
-      <div id="custom-time-fields" class="form-row hidden">
-        <div class="field">
-          <label>From (24hr)</label>
-          <input type="time" id="time_from" value="08:00" />
-        </div>
-        <div class="field">
-          <label>To (24hr)</label>
-          <input type="time" id="time_to" value="17:00" />
+      <div id="custom-time" class="cond-field hidden">
+        <div class="row2">
+          <div class="field"><label class="field-label">From</label><input type="time" id="time_from" value="08:00" /></div>
+          <div class="field"><label class="field-label">To</label><input type="time" id="time_to" value="17:00" /></div>
         </div>
       </div>
     </div>
 
     <!-- Day filter -->
     <div class="card">
-      <div class="card-title">Day preference</div>
-      <div class="pill-group" id="day-pills">
-        <div class="pill active" data-value="all" onclick="selectPill(this, 'day-pills'); toggleCustomDays()">Any day</div>
-        <div class="pill" data-value="weekdays" onclick="selectPill(this, 'day-pills'); toggleCustomDays()">Weekdays only</div>
-        <div class="pill" data-value="custom" onclick="selectPill(this, 'day-pills'); toggleCustomDays()">Custom days</div>
+      <div class="card-header"><span class="card-label">Appointment day</span></div>
+      <div class="pills" id="day-pills">
+        <div class="pill on" data-value="all"      onclick="onePill(this,'day-pills');toggleCond('custom-days','custom','day-pills')">Any day</div>
+        <div class="pill"    data-value="weekdays" onclick="onePill(this,'day-pills');toggleCond('custom-days','custom','day-pills')">Weekdays only</div>
+        <div class="pill"    data-value="custom"   onclick="onePill(this,'day-pills');toggleCond('custom-days','custom','day-pills')">Custom days</div>
       </div>
-      <div id="custom-day-fields" class="hidden" style="margin-top:14px;">
-        <div class="pill-group" id="day-select-pills">
-          <div class="pill active" data-value="0" onclick="toggleDay(this)">Mon</div>
-          <div class="pill active" data-value="1" onclick="toggleDay(this)">Tue</div>
-          <div class="pill active" data-value="2" onclick="toggleDay(this)">Wed</div>
-          <div class="pill active" data-value="3" onclick="toggleDay(this)">Thu</div>
-          <div class="pill active" data-value="4" onclick="toggleDay(this)">Fri</div>
-          <div class="pill" data-value="5" onclick="toggleDay(this)">Sat</div>
-          <div class="pill" data-value="6" onclick="toggleDay(this)">Sun</div>
+      <div id="custom-days" class="cond-field hidden">
+        <div class="pills" id="day-select-pills" style="margin-bottom:12px;">
+          <div class="pill on" data-value="0" onclick="togglePill(this)">Mon</div>
+          <div class="pill on" data-value="1" onclick="togglePill(this)">Tue</div>
+          <div class="pill on" data-value="2" onclick="togglePill(this)">Wed</div>
+          <div class="pill on" data-value="3" onclick="togglePill(this)">Thu</div>
+          <div class="pill on" data-value="4" onclick="togglePill(this)">Fri</div>
+          <div class="pill"    data-value="5" onclick="togglePill(this)">Sat</div>
+          <div class="pill"    data-value="6" onclick="togglePill(this)">Sun</div>
         </div>
       </div>
-      <div class="form-row" style="margin-top:14px;">
+      <div class="cond-field">
         <div class="field">
-          <label>Only within next N days (leave blank for no limit)</label>
-          <input type="number" id="within_days" placeholder="e.g. 14" min="1" />
+          <label class="field-label">Only within next N days <span style="font-weight:400;text-transform:none;letter-spacing:0;">(leave blank for no limit)</span></label>
+          <input type="number" id="within_days" placeholder="e.g. 14" min="1" style="max-width:200px;" />
         </div>
       </div>
     </div>
 
     <!-- Notification settings -->
     <div class="card">
-      <div class="card-title">Notification settings</div>
-      <div class="form-row triple">
+      <div class="card-header"><span class="card-label">Notification settings</span></div>
+      <div class="row3">
         <div class="field">
-          <label>Max slots per alert</label>
-          <select id="max_slots">
-            <option value="1">1 slot</option>
-            <option value="2">2 slots</option>
-            <option value="3" selected>3 slots</option>
-            <option value="5">5 slots</option>
-            <option value="10">10 slots</option>
-          </select>
+    <label class="field-label">Slots per alert</label>
+    <select id="max_slots" onchange="toggleCondSelect('custom-slots','custom','max_slots')">
+        <option value="1">1 slot</option>
+        <option value="2">2 slots</option>
+        <option value="3" selected>3 slots</option>
+        <option value="5">5 slots</option>
+        <option value="10">10 slots</option>
+        <option value="custom">Custom...</option>
+        </select>
+        <div id="custom-slots" class="cond-field hidden">
+        <input type="number" id="custom_slots_value" placeholder="Enter number, e.g. 7" min="1" max="50" />
+        </div>
         </div>
         <div class="field">
-          <label>How often to check</label>
-          <select id="check_interval_min">
+          <label class="field-label">Check frequency</label>
+          <select id="check_interval_min" onchange="toggleCondSelect('custom-interval','custom','check_interval_min')">
             <option value="5" selected>Every 5 min</option>
+            <option value="15">Every 15 min</option>
             <option value="30">Every 30 min</option>
             <option value="60">Every hour</option>
             <option value="300">Every 5 hours</option>
+            <option value="custom">Custom...</option>
           </select>
+          <div id="custom-interval" class="cond-field hidden">
+            <input type="number" id="custom_interval_value" placeholder="Minutes, e.g. 45" min="1" max="1440" />
+          </div>
         </div>
         <div class="field">
-          <label>Notify me</label>
+          <label class="field-label">Notify me</label>
           <select id="notify_frequency">
             <option value="realtime" selected>Every new slot</option>
             <option value="once_day">Once per day</option>
@@ -507,265 +238,167 @@
       </div>
     </div>
 
-    <!-- Contact info -->
+    <!-- Contact -->
     <div class="card">
-      <div class="card-title">Contact info</div>
-      <div class="form-row">
+      <div class="card-header"><span class="card-label">Notifications</span></div>
+      <div class="row2">
         <div class="field">
-          <label>Phone number (digits only)</label>
-          <input type="tel" id="phone_digits" placeholder="4085551234" maxlength="10" />
+          <label class="field-label">Pushover user key</label>
+          <input type="text" id="pushover_user_key" placeholder="Your Pushover user key" />
+          <div class="hint">Get the free app at <a href="https://pushover.net" target="_blank">pushover.net</a> for push notifications on your phone.</div>
         </div>
         <div class="field">
-          <label>Carrier SMS gateway</label>
-          <select id="carrier">
-            <option value="tmomail.net">T-Mobile</option>
-            <option value="txt.att.net">AT&T</option>
-            <option value="vtext.com">Verizon</option>
-            <option value="sms.cricketwireless.net">Cricket</option>
-            <option value="messaging.sprintpcs.com">Sprint</option>
-            <option value="sms.myboostmobile.com">Boost</option>
-          </select>
+          <label class="field-label">Email</label>
+          <input type="email" id="notify_email" placeholder="you@example.com" />
+          <div class="hint">Receive a formatted email with a one-tap booking link.</div>
         </div>
       </div>
     </div>
 
-    <!-- Save -->
+    <!-- Monitoring -->
+    <div class="card">
+      <div class="card-header" style="margin-bottom:4px;"><span class="card-label">Monitoring</span></div>
+      <div class="toggle-row">
+        <div class="toggle-info">
+          <div class="toggle-name">Active monitoring</div>
+          <div class="toggle-desc">Check for new slots and send alerts automatically</div>
+        </div>
+        <label class="tog">
+          <input type="checkbox" id="scheduler-toggle" onchange="toggleScheduler()" />
+          <div class="tog-track"></div>
+          <div class="tog-thumb"></div>
+        </label>
+      </div>
+    </div>
+
+    <!-- Save bar -->
     <div class="save-bar">
-      <span id="save-status"></span>
-      <div style="display:flex;gap:10px;">
-        <button class="btn btn-danger" onclick="optOut()">Opt out</button>
-        <button class="btn btn-primary" style="width:auto;" onclick="savePreferences()">Save preferences</button>
-      </div>
+      <span class="save-msg" id="save-status"></span>
+      <button class="btn btn-danger" onclick="optOut()">Opt out</button>
+      <button class="btn btn-primary" style="width:auto;" onclick="savePreferences()">Save changes</button>
     </div>
-
   </div>
 </main>
 
 <script>
-const API = "http://127.0.0.1:5000/api";
-let authMode = "login";
-let accessToken = localStorage.getItem("dmv_token");
+const API="http://127.0.0.1:5000/api";
+let authMode="login";
+let accessToken=localStorage.getItem("dmv_token");
+window.onload=()=>{if(accessToken)showDashboard();};
 
-// ── Init ──────────────────────────────────────────────────────
-window.onload = () => {
-  if (accessToken) showDashboard();
-};
-
-// ── Auth ──────────────────────────────────────────────────────
-function toggleAuthMode() {
-  authMode = authMode === "login" ? "signup" : "login";
-  document.getElementById("auth-title").textContent    = authMode === "login" ? "Sign in" : "Create account";
-  document.getElementById("auth-subtitle").textContent = authMode === "login"
-    ? "Get notified when DMV appointments open up near you."
-    : "Set up your DMV appointment alerts.";
-  document.getElementById("auth-btn").textContent        = authMode === "login" ? "Sign in" : "Sign up";
-  document.getElementById("auth-toggle-text").textContent = authMode === "login" ? "Don't have an account?" : "Already have an account?";
-  document.getElementById("auth-toggle-link").textContent = authMode === "login" ? "Sign up" : "Sign in";
+function toggleAuthMode(){
+  authMode=authMode==="login"?"signup":"login";
+  const L=authMode==="login";
+  document.getElementById("auth-btn-text").textContent=L?"Sign in":"Create account";
+  document.getElementById("auth-toggle-text").textContent=L?"Don't have an account?":"Already have an account?";
+  document.getElementById("auth-toggle-link").textContent=L?" Sign up":" Sign in";
   clearAlert("alert-box");
 }
 
-async function handleAuth() {
-  const email    = document.getElementById("auth-email").value.trim();
-  const password = document.getElementById("auth-password").value;
-
-  if (!email || !password) {
-    showAlert("alert-box", "error", "Please enter your email and password.");
-    return;
-  }
-
-  const endpoint = authMode === "login" ? "/login" : "/signup";
-
-  try {
-    const res  = await fetch(API + endpoint, {
-      method:  "POST",
-      headers: { "Content-Type": "application/json" },
-      body:    JSON.stringify({ email, password })
-    });
-    const data = await res.json();
-
-    if (data.error) {
-      showAlert("alert-box", "error", data.error);
-      return;
-    }
-
-    if (authMode === "login") {
-      accessToken = data.access_token;
-      localStorage.setItem("dmv_token", accessToken);
-      showDashboard();
-    } else {
-      showAlert("alert-box", "success", "Account created! Check your email to confirm, then sign in.");
-      toggleAuthMode();
-    }
-  } catch (e) {
-    showAlert("alert-box", "error", "Could not connect to server.");
-  }
+async function handleAuth(){
+  const email=document.getElementById("auth-email").value.trim();
+  const password=document.getElementById("auth-password").value;
+  if(!email||!password){showAlert("alert-box","error","Please fill in both fields.");return;}
+  try{
+    const res=await fetch(API+(authMode==="login"?"/login":"/signup"),{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({email,password})});
+    const data=await res.json();
+    if(data.error){showAlert("alert-box","error",data.error);return;}
+    if(authMode==="login"){accessToken=data.access_token;localStorage.setItem("dmv_token",accessToken);showDashboard();}
+    else{showAlert("alert-box","success","Account created! You can now sign in.");toggleAuthMode();}
+  }catch(e){showAlert("alert-box","error","Could not connect. Is the server running?");}
 }
 
-function logout() {
-  localStorage.removeItem("dmv_token");
-  accessToken = null;
+function logout(){
+  localStorage.removeItem("dmv_token");accessToken=null;
   document.getElementById("dashboard-view").classList.add("hidden");
   document.getElementById("auth-view").classList.remove("hidden");
-  document.getElementById("user-info").classList.add("hidden");
+  document.getElementById("user-info").style.display="none";
 }
 
-// ── Dashboard ─────────────────────────────────────────────────
-async function showDashboard() {
+async function showDashboard(){
   document.getElementById("auth-view").classList.add("hidden");
   document.getElementById("dashboard-view").classList.remove("hidden");
-  document.getElementById("user-info").classList.remove("hidden");
+  document.getElementById("user-info").style.display="flex";
   await loadPreferences();
+  await checkSchedulerStatus();
 }
 
-async function loadPreferences() {
-  try {
-    const res  = await fetch(API + "/preferences", {
-      headers: { "Authorization": "Bearer " + accessToken }
-    });
-    const data = await res.json();
-    if (data.error) return;
-
-    // Populate fields
-    if (data.zip_code)    document.getElementById("zip_code").value    = data.zip_code;
-    if (data.radius_mi)   document.getElementById("radius_mi").value   = data.radius_mi;
-    if (data.phone_digits) document.getElementById("phone_digits").value = data.phone_digits;
-    if (data.time_from)   document.getElementById("time_from").value   = data.time_from;
-    if (data.time_to)     document.getElementById("time_to").value     = data.time_to;
-    if (data.within_days) document.getElementById("within_days").value = data.within_days;
-
-    // Selects
-    if (data.max_slots)          document.getElementById("max_slots").value          = data.max_slots;
-    if (data.check_interval_min) document.getElementById("check_interval_min").value = data.check_interval_min;
-    if (data.notify_frequency)   document.getElementById("notify_frequency").value   = data.notify_frequency;
-    if (data.carrier)            document.getElementById("carrier").value            = data.carrier;
-
-    // Pills
-    if (data.service_type)    activatePill("service-pills", data.service_type);
-    if (data.time_filter)   { activatePill("time-pills", data.time_filter); toggleCustomTime(); }
-    if (data.day_filter)    { activatePill("day-pills", data.day_filter); toggleCustomDays(); }
-
-    // Allowed days
-    if (data.allowed_days) {
-      const days = JSON.parse(data.allowed_days);
-      document.querySelectorAll("#day-select-pills .pill").forEach(p => {
-        p.classList.toggle("active", days.includes(parseInt(p.dataset.value)));
-      });
+async function loadPreferences(){
+  try{
+    const res=await fetch(API+"/preferences",{headers:{"Authorization":"Bearer "+accessToken}});
+    const data=await res.json();
+    if(!data||data.error)return;
+    const s=(id,v)=>{const e=document.getElementById(id);if(e&&v!=null)e.value=v;};
+    s("zip_code",data.zip_code);s("radius_mi",data.radius_mi);s("within_days",data.within_days);
+    s("time_from",data.time_from);s("time_to",data.time_to);s("max_slots",data.max_slots);
+    s("check_interval_min",data.check_interval_min);s("notify_frequency",data.notify_frequency);
+    s("pushover_user_key",data.phone_digits);s("notify_email",data.email||data.notify_email);
+    if(data.service_type)setPill("service-pills",data.service_type);
+    if(data.time_filter){setPill("time-pills",data.time_filter);toggleCond("custom-time","custom","time-pills");}
+    if(data.day_filter){setPill("day-pills",data.day_filter);toggleCond("custom-days","custom","day-pills");}
+    if(data.allowed_days){
+      try{const days=JSON.parse(data.allowed_days);document.querySelectorAll("#day-select-pills .pill").forEach(p=>p.classList.toggle("on",days.includes(parseInt(p.dataset.value))));}catch(e){}
     }
-
-  } catch(e) {}
+  }catch(e){}
 }
 
-async function savePreferences() {
-  const prefs = {
-    zip_code:           document.getElementById("zip_code").value,
-    radius_mi:          parseFloat(document.getElementById("radius_mi").value) || 25,
-    service_type:       getActivePill("service-pills"),
-    max_slots:          parseInt(document.getElementById("max_slots").value),
-    check_interval_min: parseInt(document.getElementById("check_interval_min").value),
-    notify_frequency:   document.getElementById("notify_frequency").value,
-    time_filter:        getActivePill("time-pills"),
-    time_from:          document.getElementById("time_from").value,
-    time_to:            document.getElementById("time_to").value,
-    day_filter:         getActivePill("day-pills"),
-    allowed_days:       getActiveDays(),
-    within_days:        document.getElementById("within_days").value || null,
-    phone_digits:       document.getElementById("phone_digits").value,
-    carrier:            document.getElementById("carrier").value,
+async function savePreferences(){
+  const iv=document.getElementById("check_interval_min").value;
+  const prefs={
+    zip_code:document.getElementById("zip_code").value,
+    radius_mi:parseFloat(document.getElementById("radius_mi").value)||25,
+    service_type:getOnPill("service-pills"),
+    max_slots: document.getElementById("max_slots").value === "custom"
+  ? parseInt(document.getElementById("custom_slots_value").value) || 3
+  : parseInt(document.getElementById("max_slots").value),
+    check_interval_min:iv==="custom"?parseInt(document.getElementById("custom_interval_value").value)||5:parseInt(iv),
+    notify_frequency:document.getElementById("notify_frequency").value,
+    time_filter:getOnPill("time-pills"),
+    time_from:document.getElementById("time_from").value,
+    time_to:document.getElementById("time_to").value,
+    day_filter:getOnPill("day-pills"),
+    allowed_days:getOnDays(),
+    within_days:document.getElementById("within_days").value||null,
+    phone_digits:document.getElementById("pushover_user_key").value,
+    email:document.getElementById("notify_email").value,
+    carrier:"pushover",
   };
-
-  try {
-    const res  = await fetch(API + "/preferences", {
-      method:  "POST",
-      headers: {
-        "Content-Type":  "application/json",
-        "Authorization": "Bearer " + accessToken
-      },
-      body: JSON.stringify(prefs)
-    });
-    const data = await res.json();
-
-    if (data.error) {
-      showAlert("dash-alert", "error", data.error);
-    } else {
-      document.getElementById("save-status").textContent = "✓ Saved";
-      setTimeout(() => document.getElementById("save-status").textContent = "", 3000);
-    }
-  } catch(e) {
-    showAlert("dash-alert", "error", "Could not save preferences.");
-  }
+  try{
+    const res=await fetch(API+"/preferences",{method:"POST",headers:{"Content-Type":"application/json","Authorization":"Bearer "+accessToken},body:JSON.stringify(prefs)});
+    const data=await res.json();
+    if(data.error){showAlert("dash-alert","error",data.error);}
+    else{const m=document.getElementById("save-status");m.textContent="✓ Saved";setTimeout(()=>m.textContent="",2500);}
+  }catch(e){showAlert("dash-alert","error","Could not save.");}
 }
 
-async function optOut() {
-  const phone = document.getElementById("phone_digits").value;
-  if (!phone) { showAlert("dash-alert", "error", "Enter your phone number first."); return; }
-
-  if (!confirm("Are you sure you want to opt out of all notifications?")) return;
-
-  try {
-    await fetch(API + "/optout", {
-      method:  "POST",
-      headers: { "Content-Type": "application/json" },
-      body:    JSON.stringify({ phone_digits: phone })
-    });
-    showAlert("dash-alert", "success", "You've been opted out. You won't receive any more notifications.");
-  } catch(e) {}
+async function optOut(){
+  const key=document.getElementById("pushover_user_key").value;
+  if(!key){showAlert("dash-alert","error","Enter your Pushover key first.");return;}
+  if(!confirm("Stop all notifications for this account?"))return;
+  try{await fetch(API+"/optout",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({phone_digits:key})});
+  showAlert("dash-alert","success","Opted out successfully.");}catch(e){}
 }
 
-// ── Pill helpers ──────────────────────────────────────────────
-function selectPill(el, groupId) {
-  document.querySelectorAll(`#${groupId} .pill`).forEach(p => p.classList.remove("active"));
-  el.classList.add("active");
+async function toggleScheduler(){
+  const on=document.getElementById("scheduler-toggle").checked;
+  try{const res=await fetch(API+(on?"/scheduler/start":"/scheduler/stop"),{method:"POST",headers:{"Authorization":"Bearer "+accessToken}});
+  const data=await res.json();console.log(data.message);}catch(e){console.error(e);}
 }
 
-function activatePill(groupId, value) {
-  document.querySelectorAll(`#${groupId} .pill`).forEach(p => {
-    p.classList.toggle("active", p.dataset.value === value);
-  });
+async function checkSchedulerStatus(){
+  try{const res=await fetch(API+"/scheduler/status");const data=await res.json();document.getElementById("scheduler-toggle").checked=data.running;}catch(e){}
 }
 
-function getActivePill(groupId) {
-  const active = document.querySelector(`#${groupId} .pill.active`);
-  return active ? active.dataset.value : null;
-}
-
-function toggleDay(el) {
-  el.classList.toggle("active");
-}
-
-function getActiveDays() {
-  return Array.from(document.querySelectorAll("#day-select-pills .pill.active"))
-    .map(p => parseInt(p.dataset.value));
-}
-
-function toggleCustomTime() {
-  const val = getActivePill("time-pills");
-  document.getElementById("custom-time-fields").classList.toggle("hidden", val !== "custom");
-}
-
-function toggleCustomDays() {
-  const val = getActivePill("day-pills");
-  document.getElementById("custom-day-fields").classList.toggle("hidden", val !== "custom");
-}
-
-// ── Alert helpers ─────────────────────────────────────────────
-function showAlert(id, type, msg) {
-  const el = document.getElementById(id);
-  el.className = `alert alert-${type}`;
-  el.textContent = msg;
-  el.classList.remove("hidden");
-}
-
-function clearAlert(id) {
-  const el = document.getElementById(id);
-  el.classList.add("hidden");
-}
-
-// Enter key on auth fields
-document.addEventListener("keydown", e => {
-  if (e.key === "Enter" && document.getElementById("auth-view") && !document.getElementById("auth-view").classList.contains("hidden")) {
-    handleAuth();
-  }
-});
+function onePill(el,g){document.querySelectorAll("#"+g+" .pill").forEach(p=>p.classList.remove("on"));el.classList.add("on");}
+function togglePill(el){el.classList.toggle("on");}
+function setPill(g,v){document.querySelectorAll("#"+g+" .pill").forEach(p=>p.classList.toggle("on",p.dataset.value===v));}
+function getOnPill(g){const a=document.querySelector("#"+g+" .pill.on");return a?a.dataset.value:null;}
+function getOnDays(){return Array.from(document.querySelectorAll("#day-select-pills .pill.on")).map(p=>parseInt(p.dataset.value));}
+function toggleCond(fieldId,trigger,groupId){const a=document.querySelector("#"+groupId+" .pill.on");document.getElementById(fieldId).classList.toggle("hidden",(a?a.dataset.value:null)!==trigger);}
+function toggleCondSelect(fieldId,trigger,selectId){document.getElementById(fieldId).classList.toggle("hidden",document.getElementById(selectId).value!==trigger);}
+function showAlert(id,type,msg){const el=document.getElementById(id);el.className="alert alert-"+type;el.textContent=msg;el.classList.remove("hidden");}
+function clearAlert(id){document.getElementById(id).classList.add("hidden");}
+document.addEventListener("keydown",e=>{if(e.key==="Enter"&&!document.getElementById("auth-view").classList.contains("hidden"))handleAuth();});
 </script>
 </body>
 </html>

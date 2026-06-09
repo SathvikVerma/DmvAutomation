@@ -173,7 +173,7 @@ def run_scheduler():
     from database import init_db
 
     init_db()
-    _scheduler_running = Tru
+    _scheduler_running = True
 
     while _scheduler_running:
         try:
