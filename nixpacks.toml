@@ -1,7 +1,3 @@
-cat > nixpacks.toml << 'EOF'
-[phases.setup]
-nixPkgs = ["python3", "gcc"]
-
 [phases.install]
 cmds = [
   "pip install -r requirements.txt",
@@ -11,4 +7,3 @@ cmds = [
 
 [start]
 cmd = "gunicorn app:app"
-EOF
