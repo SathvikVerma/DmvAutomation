@@ -152,7 +152,17 @@ def get_session_automated(dl_number: str, dob: str, zip_code: str) -> tuple:
                     except:
                         continue
 
-            page.wait_for_timeout(2000)
+            page.wait_for_timeout(5000)
+            # Take screenshot for debugging
+            page.screenshot(path="/tmp/dmv_page.png")
+            print("  Page title:", page.title())
+            print("  Page URL:", page.url)
+            
+            # Print all buttons on page
+            buttons = page.evaluate("""
+                () => Array.from(document.querySelectorAll('button')).map(b => b.textContent.trim()).filter(t => t)
+            """)
+            print("  Buttons found:", buttons[:10])
 
             # Fill license number - try multiple placeholders
             for placeholder in ["A1234567", "License Number", "DL Number", "Enter license"]:
