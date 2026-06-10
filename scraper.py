@@ -125,16 +125,50 @@ def get_session_automated(dl_number: str, dob: str, zip_code: str) -> tuple:
         page.wait_for_timeout(3000)
 
         try:
-            # Try multiple ways to click SELECT
+            # Wait for service selection buttons to actually load
+            print("  Waiting for service buttons to load...")
+            try:
+                page.wait_for_function("""
+                    () => {
+                        const btns = Array.from(document.querySelectorAll('button, a'));
+                        return btns.some(b => b.textContent.includes('Automobile') ||
+                                             b.textContent.includes('Drive Test') ||
+                                             b.textContent.includes('SELECT') ||
+                                             b.textContent.includes('Select'));
+                    }
+                """, timeout=15000)
+                print("  Service buttons loaded")
+            except:
+                print("  Timed out waiting for service buttons")
+
+            # Print all clickable elements for debugging
+            buttons = page.evaluate("""
+                () => Array.from(document.querySelectorAll('button, a')).map(b => b.textContent.trim()).filter(t => t.length > 2 && t.length < 80)
+            """)
+            print("  Clickable elements found:", buttons[:20])
+
+            # Try to click SELECT next to Automobile
             clicked = False
 
-            # Method 1: JavaScript click
+            # Method 1: JavaScript - find button near "Automobile" text
             clicked = page.evaluate("""
                 () => {
+                    // Try to find SELECT button
                     const btns = Array.from(document.querySelectorAll('button, input[type="button"], a'));
-                    const sel = btns.find(b => b.textContent.trim().toUpperCase() === 'SELECT' ||
-                                              b.value?.toUpperCase() === 'SELECT');
+                    
+                    // Look for exact SELECT text
+                    let sel = btns.find(b => b.textContent.trim().toUpperCase() === 'SELECT');
                     if (sel) { sel.click(); return true; }
+                    
+                    // Look for button containing Select
+                    sel = btns.find(b => b.textContent.trim() === 'Select');
+                    if (sel) { sel.click(); return true; }
+                    
+                    // Look for any link/button with select in text
+                    sel = btns.find(b => b.textContent.toLowerCase().includes('select') && 
+                                        !b.textContent.toLowerCase().includes('location'));
+                    if (sel) { sel.click(); return true; }
+                    
                     return false;
                 }
             """)
@@ -143,40 +177,58 @@ def get_session_automated(dl_number: str, dob: str, zip_code: str) -> tuple:
                 print("  Clicked SELECT via JavaScript")
             else:
                 # Method 2: Try various selectors
-                for sel in ["button:has-text('Select')", "text=Select", "[value='Select']"]:
+                for sel in [
+                    "button:has-text('Select')",
+                    "a:has-text('Select')",
+                    "text=Select",
+                    "[value='Select']",
+                    "button.select",
+                    ".service-select button",
+                ]:
                     try:
-                        page.click(sel, timeout=3000)
+                        page.click(sel, timeout=2000)
                         clicked = True
                         print(f"  Clicked SELECT via: {sel}")
                         break
                     except:
                         continue
 
-            page.wait_for_timeout(5000)
-            # Take screenshot for debugging
-            page.screenshot(path="/tmp/dmv_page.png")
-            print("  Page title:", page.title())
-            print("  Page URL:", page.url)
-            
-            # Print all buttons on page
-            buttons = page.evaluate("""
-                () => Array.from(document.querySelectorAll('button')).map(b => b.textContent.trim()).filter(t => t)
-            """)
-            print("  Buttons found:", buttons[:10])
+            if not clicked:
+                print("  Could not find SELECT button — trying to proceed anyway")
 
-            # Fill license number - try multiple placeholders
-            for placeholder in ["A1234567", "License Number", "DL Number", "Enter license"]:
+            page.wait_for_timeout(5000)
+
+            # Debug: show current page state
+            print("  Current URL:", page.url)
+            print("  Current title:", page.title())
+
+            # Fill license number
+            filled_dl = False
+            for placeholder in ["A1234567", "License Number", "DL Number", "Enter license", "license"]:
                 try:
                     field = page.get_by_placeholder(placeholder)
                     field.wait_for(timeout=3000)
                     field.fill(dl_number)
                     print("  Entered license number")
+                    filled_dl = True
                     break
                 except:
                     continue
 
+            if not filled_dl:
+                # Try by input type or name
+                try:
+                    inputs = page.evaluate("""
+                        () => Array.from(document.querySelectorAll('input')).map(i => ({
+                            type: i.type, name: i.name, placeholder: i.placeholder, id: i.id
+                        }))
+                    """)
+                    print("  Input fields found:", inputs[:10])
+                except:
+                    pass
+
             # Fill DOB
-            for placeholder in ["mm/dd/yyyy", "MM/DD/YYYY", "Date of Birth", "DOB"]:
+            for placeholder in ["mm/dd/yyyy", "MM/DD/YYYY", "Date of Birth", "DOB", "date"]:
                 try:
                     field = page.get_by_placeholder(placeholder)
                     field.wait_for(timeout=3000)
@@ -189,7 +241,7 @@ def get_session_automated(dl_number: str, dob: str, zip_code: str) -> tuple:
             page.wait_for_timeout(500)
 
             # Click Make an Appointment
-            for text in ["Make an Appointment", "Make Appointment", "Continue", "Next"]:
+            for text in ["Make an Appointment", "Make Appointment", "Continue", "Next", "Submit"]:
                 try:
                     page.get_by_text(text).click(timeout=3000)
                     print(f"  Clicked: {text}")
@@ -198,12 +250,13 @@ def get_session_automated(dl_number: str, dob: str, zip_code: str) -> tuple:
                     continue
 
             page.wait_for_timeout(4000)
+            print("  After form submit URL:", page.url)
 
             # Enter zip code
             try:
                 page.wait_for_url("**/select-location/**", timeout=8000)
                 page.wait_for_timeout(2000)
-                for placeholder in ["Search here...", "Zip Code", "Enter zip", "Search"]:
+                for placeholder in ["Search here...", "Zip Code", "Enter zip", "Search", "zip"]:
                     try:
                         zip_input = page.get_by_placeholder(placeholder).last
                         zip_input.fill(zip_code)
@@ -213,32 +266,35 @@ def get_session_automated(dl_number: str, dob: str, zip_code: str) -> tuple:
                     except:
                         continue
                 page.wait_for_timeout(4000)
-            except:
-                print("  Could not navigate to location page")
 
-            # Click first Select Location
-            try:
-                btns = page.get_by_text("Select Location").all()
-                if btns:
-                    btns[0].click()
-                    print("  Clicked: Select Location")
-                    page.wait_for_timeout(5000)
-            except:
-                # Try JavaScript
-                page.evaluate("""
-                    () => {
-                        const btns = Array.from(document.querySelectorAll('button, a'));
-                        const sel = btns.find(b => b.textContent.includes('Select Location'));
-                        if (sel) sel.click();
-                    }
-                """)
-                page.wait_for_timeout(3000)
+                # Click first Select Location
+                try:
+                    btns = page.get_by_text("Select Location").all()
+                    if btns:
+                        btns[0].click()
+                        print("  Clicked: Select Location")
+                        page.wait_for_timeout(5000)
+                    else:
+                        page.evaluate("""
+                            () => {
+                                const btns = Array.from(document.querySelectorAll('button, a'));
+                                const sel = btns.find(b => b.textContent.includes('Select Location'));
+                                if (sel) sel.click();
+                            }
+                        """)
+                        page.wait_for_timeout(3000)
+                except Exception as e:
+                    print(f"  Select Location error: {e}")
+
+            except Exception as e:
+                print(f"  Location page error: {e}")
+                print("  URL at error:", page.url)
 
         except Exception as e:
             print(f"  Automation step failed: {e}")
 
-        # Wait a bit more for response to arrive
-        for _ in range(10):
+        # Wait for dates response
+        for _ in range(15):
             if dates_data:
                 break
             page.wait_for_timeout(1000)
