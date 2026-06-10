@@ -191,6 +191,7 @@ def health():
 # ── Scheduler ─────────────────────────────────────────────────
 def run_scheduler():
     global _scheduler_running
+    print("=== RUN_SCHEDULER ENTERED ===")
     from scraper import run_check
     from notify  import notify_new_slots
     from database import init_db
@@ -250,10 +251,13 @@ def run_scheduler():
 @app.route("/api/scheduler/start", methods=["POST"])
 def start_scheduler():
     global _scheduler_thread, _scheduler_running
+    print("=== SCHEDULER START CALLED ===")
     if _scheduler_thread and _scheduler_thread.is_alive():
+        print("=== ALREADY RUNNING ===")
         return jsonify({"message": "Scheduler already running"})
     _scheduler_thread = threading.Thread(target=run_scheduler, daemon=True)
     _scheduler_thread.start()
+    print("=== THREAD STARTED ===")
     return jsonify({"message": "Scheduler started"})
 
 

@@ -78,11 +78,8 @@ class Slot:
         return f"{self.display_date} at {self.display_time}"
 
 
-def get_session_automated(dl_number: str, dob: str, zip_code: str) -> tuple[str, dict, str, str, list]:
-    """
-    Fully automated Playwright session using stored credentials.
-    No manual interaction needed.
-    """
+def get_session_automated(dl_number: str, dob: str, zip_code: str) -> tuple:
+    """Fully automated Playwright session using stored credentials."""
     global SERVICE_ID
     token             = None
     cookies           = {}
@@ -93,10 +90,14 @@ def get_session_automated(dl_number: str, dob: str, zip_code: str) -> tuple[str,
     with sync_playwright() as p:
         browser = p.chromium.launch(
             headless=True,
-            args=["--no-sandbox", "--disable-setuid-sandbox", "--disable-dev-shm-usage"]
+            args=["--no-sandbox", "--disable-setuid-sandbox", "--disable-dev-shm-usage",
+                  "--disable-gpu", "--single-process"]
         )
-        context = browser.new_context(viewport={"width": 1280, "height": 800})
-        page    = context.new_page()
+        context = browser.new_context(
+            viewport={"width": 1280, "height": 800},
+            user_agent="Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+        )
+        page = context.new_page()
 
         def on_response(response):
             nonlocal token, service_id, clicked_office_id, dates_data
@@ -120,52 +121,117 @@ def get_session_automated(dl_number: str, dob: str, zip_code: str) -> tuple[str,
 
         print("  Loading DMV booking page...")
         page.goto(f"{BASE}/appointments/select-appointment-type/", timeout=30000)
+        page.wait_for_load_state("networkidle", timeout=15000)
         page.wait_for_timeout(3000)
 
         try:
-            # Click SELECT next to Automobile
-            page.eval_on_selector(
-                "button:has-text('SELECT')",
-                "el => el.click()"
-            )
-            print("  Clicked: Automobile SELECT")
+            # Try multiple ways to click SELECT
+            clicked = False
+
+            # Method 1: JavaScript click
+            clicked = page.evaluate("""
+                () => {
+                    const btns = Array.from(document.querySelectorAll('button, input[type="button"], a'));
+                    const sel = btns.find(b => b.textContent.trim().toUpperCase() === 'SELECT' ||
+                                              b.value?.toUpperCase() === 'SELECT');
+                    if (sel) { sel.click(); return true; }
+                    return false;
+                }
+            """)
+
+            if clicked:
+                print("  Clicked SELECT via JavaScript")
+            else:
+                # Method 2: Try various selectors
+                for sel in ["button:has-text('Select')", "text=Select", "[value='Select']"]:
+                    try:
+                        page.click(sel, timeout=3000)
+                        clicked = True
+                        print(f"  Clicked SELECT via: {sel}")
+                        break
+                    except:
+                        continue
+
             page.wait_for_timeout(2000)
 
-            # Fill license number
-            dl_field = page.get_by_placeholder("A1234567")
-            dl_field.wait_for(timeout=5000)
-            dl_field.fill(dl_number)
-            print("  Entered license number")
+            # Fill license number - try multiple placeholders
+            for placeholder in ["A1234567", "License Number", "DL Number", "Enter license"]:
+                try:
+                    field = page.get_by_placeholder(placeholder)
+                    field.wait_for(timeout=3000)
+                    field.fill(dl_number)
+                    print("  Entered license number")
+                    break
+                except:
+                    continue
 
             # Fill DOB
-            dob_field = page.get_by_placeholder("mm/dd/yyyy")
-            dob_field.fill(dob)
-            print("  Entered DOB")
+            for placeholder in ["mm/dd/yyyy", "MM/DD/YYYY", "Date of Birth", "DOB"]:
+                try:
+                    field = page.get_by_placeholder(placeholder)
+                    field.wait_for(timeout=3000)
+                    field.fill(dob)
+                    print("  Entered DOB")
+                    break
+                except:
+                    continue
+
             page.wait_for_timeout(500)
 
             # Click Make an Appointment
-            page.get_by_text("Make an Appointment").click(timeout=5000)
-            print("  Clicked: Make an Appointment")
+            for text in ["Make an Appointment", "Make Appointment", "Continue", "Next"]:
+                try:
+                    page.get_by_text(text).click(timeout=3000)
+                    print(f"  Clicked: {text}")
+                    break
+                except:
+                    continue
+
             page.wait_for_timeout(4000)
 
             # Enter zip code
-            page.wait_for_url("**/select-location/**", timeout=8000)
-            page.wait_for_timeout(2000)
-            zip_input = page.get_by_placeholder("Search here...").last
-            zip_input.fill(zip_code)
-            page.keyboard.press("Enter")
-            print(f"  Entered zip: {zip_code}")
-            page.wait_for_timeout(4000)
+            try:
+                page.wait_for_url("**/select-location/**", timeout=8000)
+                page.wait_for_timeout(2000)
+                for placeholder in ["Search here...", "Zip Code", "Enter zip", "Search"]:
+                    try:
+                        zip_input = page.get_by_placeholder(placeholder).last
+                        zip_input.fill(zip_code)
+                        page.keyboard.press("Enter")
+                        print(f"  Entered zip: {zip_code}")
+                        break
+                    except:
+                        continue
+                page.wait_for_timeout(4000)
+            except:
+                print("  Could not navigate to location page")
 
             # Click first Select Location
-            btns = page.get_by_text("Select Location").all()
-            if btns:
-                btns[0].click()
-                print("  Clicked: Select Location")
-                page.wait_for_timeout(5000)
+            try:
+                btns = page.get_by_text("Select Location").all()
+                if btns:
+                    btns[0].click()
+                    print("  Clicked: Select Location")
+                    page.wait_for_timeout(5000)
+            except:
+                # Try JavaScript
+                page.evaluate("""
+                    () => {
+                        const btns = Array.from(document.querySelectorAll('button, a'));
+                        const sel = btns.find(b => b.textContent.includes('Select Location'));
+                        if (sel) sel.click();
+                    }
+                """)
+                page.wait_for_timeout(3000)
 
         except Exception as e:
             print(f"  Automation step failed: {e}")
+
+        # Wait a bit more for response to arrive
+        for _ in range(10):
+            if dates_data:
+                break
+            page.wait_for_timeout(1000)
 
         if not dates_data:
             print("  ✗ Could not capture dates automatically")
@@ -177,11 +243,8 @@ def get_session_automated(dl_number: str, dob: str, zip_code: str) -> tuple[str,
     return token, cookies, service_id, clicked_office_id, dates_data
 
 
-def get_session_manual() -> tuple[str, dict, str, str, list]:
-    """
-    Manual fallback — opens a visible browser for the user to click through.
-    Used for local testing when no credentials are stored.
-    """
+def get_session_manual() -> tuple:
+    """Manual fallback for local testing."""
     global SERVICE_ID
     token             = None
     cookies           = {}
@@ -241,7 +304,7 @@ def get_session_manual() -> tuple[str, dict, str, str, list]:
     return token, cookies, service_id, clicked_office_id, dates_data
 
 
-def get_times_for_date(public_id: str, date_str: str, session: requests.Session) -> list[str]:
+def get_times_for_date(public_id: str, date_str: str, session: requests.Session) -> list:
     url = TIMES_URL.format(publicId=public_id)
     params = {"date": date_str, "services[]": SERVICE_ID, "numberOfCustomers": "1"}
     try:
@@ -336,7 +399,7 @@ def parse_slots_with_times(dates_response, target_office_id, distance_mi, sessio
 
 def run_check(zip_code: str, radius_mi: float, prefs: dict = None) -> list:
     global SERVICE_ID
-    from geo_filter import filter_by_radius, zip_to_coords
+    from geo_filter import zip_to_coords
     from geopy.distance import geodesic
 
     if prefs is None:
@@ -345,7 +408,6 @@ def run_check(zip_code: str, radius_mi: float, prefs: dict = None) -> list:
 
     print(f"\n── DMV check for {zip_code} ──")
 
-    # Use automated session if credentials available, else manual
     dl_number = prefs.get("dl_number", "")
     dob       = prefs.get("dob", "")
 
