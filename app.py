@@ -19,7 +19,6 @@ SUPABASE_SERVICE_KEY = os.getenv("SUPABASE_SERVICE_KEY")
 
 supabase: Client = create_client(SUPABASE_URL, SUPABASE_SERVICE_KEY)
 
-# Scheduler state
 _scheduler_thread  = None
 _scheduler_running = False
 
@@ -48,14 +47,19 @@ def signup():
 def login():
     data = request.json
     try:
-        res = supabase.auth.sign_in_with_password({"email": data.get("email"), "password": data.get("password")})
-        return jsonify({"access_token": res.session.access_token, "user_id": res.user.id})
+        res = supabase.auth.sign_in_with_password({
+            "email": data.get("email"),
+            "password": data.get("password")
+        })
+        return jsonify({
+            "access_token": res.session.access_token,
+            "user_id": res.user.id
+        })
     except Exception as e:
         return jsonify({"error": str(e)}), 401
 
 
 def get_user_id(auth_header):
-    """Helper to verify token and return user_id."""
     if not auth_header:
         return None
     token = auth_header.replace("Bearer ", "")
@@ -74,10 +78,11 @@ def preferences():
         return jsonify({"error": "Not authenticated"}), 401
 
     if request.method == "POST":
-        data  = request.json
+        data = request.json
         prefs = {
             "user_id":            user_id,
             "phone_digits":       data.get("phone_digits"),
+            "email":              data.get("email"),
             "zip_code":           data.get("zip_code", "95035"),
             "radius_mi":          float(data.get("radius_mi", 25)),
             "service_type":       data.get("service_type", "automobile"),
@@ -90,7 +95,7 @@ def preferences():
             "day_filter":         data.get("day_filter", "all"),
             "allowed_days":       json.dumps(data.get("allowed_days", [0,1,2,3,4])),
             "within_days":        data.get("within_days"),
-            "carrier":            data.get("carrier", "tmomail.net"),
+            "carrier":            data.get("carrier", "pushover"),
         }
         try:
             existing = supabase.table("user_profiles").select("id").eq("user_id", user_id).execute()
@@ -98,25 +103,57 @@ def preferences():
                 supabase.table("user_profiles").update(prefs).eq("user_id", user_id).execute()
             else:
                 supabase.table("user_profiles").insert(prefs).execute()
-            
             return jsonify({"message": "Preferences saved"})
         except Exception as e:
             return jsonify({"error": str(e)}), 500
 
     else:
         try:
-            res = supabase.table("user_profiles") \
-                .select("*") \
-                .eq("user_id", user_id) \
-                .execute()
-            # Return first row if exists, otherwise empty object
-            data = res.data
-            if data and len(data) > 0:
-                return jsonify(data[0])
-            else:
-                return jsonify({})
+            res = supabase.table("user_profiles").select("*").eq("user_id", user_id).execute()
+            if res.data and len(res.data) > 0:
+                return jsonify(res.data[0])
+            return jsonify({})
         except Exception as e:
             return jsonify({"error": str(e)}), 500
+
+
+# ── Credentials (encrypted) ───────────────────────────────────
+@app.route("/api/credentials", methods=["POST"])
+def save_credentials():
+    user_id = get_user_id(request.headers.get("Authorization"))
+    if not user_id:
+        return jsonify({"error": "Not authenticated"}), 401
+
+    data = request.json
+    dl_number = data.get("dl_number", "").strip()
+    dob       = data.get("dob", "").strip()
+
+    if not dl_number or not dob:
+        return jsonify({"error": "License number and DOB are required"}), 400
+
+    try:
+        from encrypt import encrypt
+        encrypted_dl  = encrypt(dl_number)
+        encrypted_dob = encrypt(dob)
+
+        existing = supabase.table("user_profiles").select("id").eq("user_id", user_id).execute()
+        if existing.data:
+            supabase.table("user_profiles").update({
+                "dl_number_encrypted": encrypted_dl,
+                "dob_encrypted":       encrypted_dob,
+            }).eq("user_id", user_id).execute()
+        else:
+            supabase.table("user_profiles").insert({
+                "user_id":             user_id,
+                "dl_number_encrypted": encrypted_dl,
+                "dob_encrypted":       encrypted_dob,
+                "zip_code":            "00000",
+                "radius_mi":           25,
+            }).execute()
+
+        return jsonify({"message": "Credentials saved securely"})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
 
 # ── Opt out ───────────────────────────────────────────────────
@@ -124,7 +161,7 @@ def preferences():
 def optout():
     phone_digits = request.json.get("phone_digits")
     if not phone_digits:
-        return jsonify({"error": "Phone number required"}), 400
+        return jsonify({"error": "Key required"}), 400
     try:
         supabase.table("user_profiles").update({"opted_out": True}).eq("phone_digits", phone_digits).execute()
         return jsonify({"message": f"{phone_digits} opted out"})
@@ -139,12 +176,7 @@ def get_slots():
     if not user_id:
         return jsonify({"error": "Not authenticated"}), 401
     try:
-        res = supabase.table("seen_slots") \
-            .select("*") \
-            .eq("user_id", user_id) \
-            .order("found_at", desc=True) \
-            .limit(50) \
-            .execute()
+        res = supabase.table("seen_slots").select("*").eq("user_id", user_id).order("found_at", desc=True).limit(50).execute()
         return jsonify(res.data)
     except Exception as e:
         return jsonify({"error": str(e)}), 500
@@ -162,15 +194,7 @@ def run_scheduler():
     from scraper import run_check
     from notify  import notify_new_slots
     from database import init_db
-
-    init_db()
-    _scheduler_running = True
-
-    def run_scheduler():
-        global _scheduler_running
-    from scraper import run_check
-    from notify  import notify_new_slots
-    from database import init_db
+    from encrypt import decrypt
 
     init_db()
     _scheduler_running = True
@@ -183,6 +207,14 @@ def run_scheduler():
 
             for user in users:
                 try:
+                    # Decrypt credentials
+                    dl_number = decrypt(user.get("dl_number_encrypted", "")) if user.get("dl_number_encrypted") else ""
+                    dob       = decrypt(user.get("dob_encrypted", ""))       if user.get("dob_encrypted")       else ""
+
+                    if not dl_number or not dob:
+                        print(f"  Skipping user {user.get('user_id')} — no credentials saved")
+                        continue
+
                     prefs = {
                         "zip_code":           user["zip_code"],
                         "radius_mi":          user["radius_mi"],
@@ -194,10 +226,13 @@ def run_scheduler():
                         "time_from":          user["time_from"],
                         "time_to":            user["time_to"],
                         "day_filter":         user["day_filter"],
-                        "allowed_days":       json.loads(user["allowed_days"]),
+                        "allowed_days":       json.loads(user["allowed_days"]) if user.get("allowed_days") else [0,1,2,3,4],
                         "within_days":        user["within_days"],
                         "phone_digits":       user["phone_digits"],
-                        "carrier":            user["carrier"],
+                        "email":              user.get("email"),
+                        "carrier":            user.get("carrier", "pushover"),
+                        "dl_number":          dl_number,
+                        "dob":                dob,
                     }
                     slots = run_check(user["zip_code"], user["radius_mi"], prefs=prefs)
                     if slots:
@@ -208,8 +243,7 @@ def run_scheduler():
         except Exception as e:
             print(f"[Scheduler] Error: {e}")
 
-        # Only run once per manual trigger
-        print("\n[Scheduler] Check complete. Toggle off and on to run again.")
+        print("\n[Scheduler] Check complete. Sleeping...")
         break
 
 

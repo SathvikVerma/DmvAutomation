@@ -19,40 +19,26 @@ BOOKING_URL   = f"{BASE}/appointments/select-appointment-type/"
 SERVICE_ID = "DT!1857a62125c4425a24d85aceac6726cb8df3687d47b03b692e27bd8d17814"
 
 HEADERS = {
-    "accept":           "*/*",
-    "accept-language":  "en-US,en;q=0.9",
+    "accept":          "*/*",
+    "accept-language": "en-US,en;q=0.9",
     "user-agent": (
         "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
         "AppleWebKit/537.36 (KHTML, like Gecko) "
         "Chrome/148.0.0.0 Safari/537.36"
     ),
-    "sec-fetch-dest":  "empty",
-    "sec-fetch-mode":  "cors",
-    "sec-fetch-site":  "same-origin",
+    "sec-fetch-dest": "empty",
+    "sec-fetch-mode": "cors",
+    "sec-fetch-site": "same-origin",
 }
 
 OFFICE_INFO = {
-    "516!56b48e272ba45819d81868f440fb30eb6c406b705436cf1d101d2ea2c75c": {
-        "address": "111 W. Alma Ave.", "zip": "95110", "city": "San Jose"
-    },
-    "632!afa980930a4d9da9dea767520801e38ef924a286d22bf6d97782c5d20731": {
-        "address": "3665 Flora Vista Ave.", "zip": "95051", "city": "Santa Clara"
-    },
-    "640!9ffc1fef9b57f8bf1ba6984ffdb4981acbf88d4b101ae27edac9d65a45f4": {
-        "address": "600 North Santa Cruz Ave.", "zip": "95030", "city": "Los Gatos"
-    },
-    "668!425f963ed312b21424c080ab6ad65d91e820502590e03c8c28c2accc263c": {
-        "address": "180 Martinvale Lane", "zip": "95119", "city": "Santa Teresa"
-    },
-    "631!c533ba75524ac439cdf0826fc9eafc888c8242fa3863104a1b383c3bfb05": {
-        "address": "6300 W. Las Positas Blvd", "zip": "94588", "city": "Pleasanton"
-    },
-    "644!03ada32357f5fd32a107fca81b020fd9b4fd0062cbaabf014dcacb6b5516": {
-        "address": "4287 Central Ave.", "zip": "94536", "city": "Fremont"
-    },
-    "623!7d6e807879fe5c298d463eeabed992b7b28b2feb80ad74dbb1a4ce5ebae6": {
-        "address": "6984 Automall Parkway Suite A", "zip": "95020", "city": "Gilroy"
-    },
+    "516!56b48e272ba45819d81868f440fb30eb6c406b705436cf1d101d2ea2c75c": {"address": "111 W. Alma Ave.",            "zip": "95110", "city": "San Jose"},
+    "632!afa980930a4d9da9dea767520801e38ef924a286d22bf6d97782c5d20731": {"address": "3665 Flora Vista Ave.",        "zip": "95051", "city": "Santa Clara"},
+    "640!9ffc1fef9b57f8bf1ba6984ffdb4981acbf88d4b101ae27edac9d65a45f4": {"address": "600 North Santa Cruz Ave.",   "zip": "95030", "city": "Los Gatos"},
+    "668!425f963ed312b21424c080ab6ad65d91e820502590e03c8c28c2accc263c": {"address": "180 Martinvale Lane",         "zip": "95119", "city": "Santa Teresa"},
+    "631!c533ba75524ac439cdf0826fc9eafc888c8242fa3863104a1b383c3bfb05": {"address": "6300 W. Las Positas Blvd",    "zip": "94588", "city": "Pleasanton"},
+    "644!03ada32357f5fd32a107fca81b020fd9b4fd0062cbaabf014dcacb6b5516": {"address": "4287 Central Ave.",           "zip": "94536", "city": "Fremont"},
+    "623!7d6e807879fe5c298d463eeabed992b7b28b2feb80ad74dbb1a4ce5ebae6": {"address": "6984 Automall Parkway Suite A","zip": "95020", "city": "Gilroy"},
 }
 
 
@@ -63,8 +49,8 @@ class Slot:
     office_address: str
     distance_mi:    float
     service_type:   str
-    slot_date:      str    # "2026-07-01"
-    slot_time:      str    # "10:20" (24hr) or "" if unknown
+    slot_date:      str
+    slot_time:      str
     booking_url:    str
 
     @property
@@ -79,7 +65,6 @@ class Slot:
 
     @property
     def display_time(self):
-        """Convert 24hr time to 12hr format e.g. 13:20 → 1:20 PM"""
         if not self.slot_time:
             return "Time TBD"
         try:
@@ -93,14 +78,111 @@ class Slot:
         return f"{self.display_date} at {self.display_time}"
 
 
-# ── Playwright session ────────────────────────────────────────────────────────
+def get_session_automated(dl_number: str, dob: str, zip_code: str) -> tuple[str, dict, str, str, list]:
+    """
+    Fully automated Playwright session using stored credentials.
+    No manual interaction needed.
+    """
+    global SERVICE_ID
+    token             = None
+    cookies           = {}
+    service_id        = None
+    clicked_office_id = None
+    dates_data        = []
 
-def get_session_token() -> tuple[str, dict, str, str, list]:
+    with sync_playwright() as p:
+        browser = p.chromium.launch(
+            headless=True,
+            args=["--no-sandbox", "--disable-setuid-sandbox", "--disable-dev-shm-usage"]
+        )
+        context = browser.new_context(viewport={"width": 1280, "height": 800})
+        page    = context.new_page()
+
+        def on_response(response):
+            nonlocal token, service_id, clicked_office_id, dates_data
+            if "branches/" in response.url and "dates" in response.url:
+                svc_match = re.search(r'services%5B%5D=([^&]+)', response.url)
+                if svc_match:
+                    service_id = urllib.parse.unquote(svc_match.group(1))
+                office_match = re.search(r'branches/([^/]+)/dates', response.url)
+                if office_match:
+                    clicked_office_id = urllib.parse.unquote(office_match.group(1))
+                token_match = re.search(r'token=([^&]+)', response.url)
+                if token_match:
+                    token = token_match.group(1)
+                try:
+                    dates_data = response.json()
+                    print(f"  ✓ Captured {len(dates_data)} date entries!")
+                except:
+                    pass
+
+        page.on("response", on_response)
+
+        print("  Loading DMV booking page...")
+        page.goto(f"{BASE}/appointments/select-appointment-type/", timeout=30000)
+        page.wait_for_timeout(3000)
+
+        try:
+            # Click SELECT next to Automobile
+            page.eval_on_selector(
+                "button:has-text('SELECT')",
+                "el => el.click()"
+            )
+            print("  Clicked: Automobile SELECT")
+            page.wait_for_timeout(2000)
+
+            # Fill license number
+            dl_field = page.get_by_placeholder("A1234567")
+            dl_field.wait_for(timeout=5000)
+            dl_field.fill(dl_number)
+            print("  Entered license number")
+
+            # Fill DOB
+            dob_field = page.get_by_placeholder("mm/dd/yyyy")
+            dob_field.fill(dob)
+            print("  Entered DOB")
+            page.wait_for_timeout(500)
+
+            # Click Make an Appointment
+            page.get_by_text("Make an Appointment").click(timeout=5000)
+            print("  Clicked: Make an Appointment")
+            page.wait_for_timeout(4000)
+
+            # Enter zip code
+            page.wait_for_url("**/select-location/**", timeout=8000)
+            page.wait_for_timeout(2000)
+            zip_input = page.get_by_placeholder("Search here...").last
+            zip_input.fill(zip_code)
+            page.keyboard.press("Enter")
+            print(f"  Entered zip: {zip_code}")
+            page.wait_for_timeout(4000)
+
+            # Click first Select Location
+            btns = page.get_by_text("Select Location").all()
+            if btns:
+                btns[0].click()
+                print("  Clicked: Select Location")
+                page.wait_for_timeout(5000)
+
+        except Exception as e:
+            print(f"  Automation step failed: {e}")
+
+        if not dates_data:
+            print("  ✗ Could not capture dates automatically")
+
+        raw_cookies = context.cookies()
+        cookies = {c["name"]: c["value"] for c in raw_cookies}
+        browser.close()
+
+    return token, cookies, service_id, clicked_office_id, dates_data
+
+
+def get_session_manual() -> tuple[str, dict, str, str, list]:
     """
-    Opens a browser for the user to click through the DMV flow.
-    Intercepts the dates response directly.
-    Returns (token, cookies, service_id, clicked_office_id, dates_data)
+    Manual fallback — opens a visible browser for the user to click through.
+    Used for local testing when no credentials are stored.
     """
+    global SERVICE_ID
     token             = None
     cookies           = {}
     service_id        = None
@@ -115,34 +197,27 @@ def get_session_token() -> tuple[str, dict, str, str, list]:
         def on_response(response):
             nonlocal token, service_id, clicked_office_id, dates_data
             if "branches/" in response.url and "dates" in response.url:
-                print("\n  ✓ Dates response intercepted!")
-
                 svc_match = re.search(r'services%5B%5D=([^&]+)', response.url)
                 if svc_match:
                     service_id = urllib.parse.unquote(svc_match.group(1))
-                    print(f"  ✓ Service ID: {service_id[:40]}...")
-
                 office_match = re.search(r'branches/([^/]+)/dates', response.url)
                 if office_match:
                     clicked_office_id = urllib.parse.unquote(office_match.group(1))
-                    print(f"  ✓ Office ID: {clicked_office_id[:30]}...")
-
                 token_match = re.search(r'token=([^&]+)', response.url)
                 if token_match:
                     token = token_match.group(1)
-
                 try:
                     dates_data = response.json()
-                    print(f"  ✓ Captured {len(dates_data)} date entries!")
-                except Exception as e:
-                    print(f"  Could not parse response: {e}")
+                    print(f"\n  ✓ Captured {len(dates_data)} date entries!")
+                except:
+                    pass
 
         page.on("response", on_response)
 
         print("\n" + "="*55)
         print("  ACTION NEEDED — please use the browser that opened")
         print("="*55)
-        print("  1. Click SELECT next to your service type")
+        print("  1. Click SELECT next to Automobile")
         print("  2. Enter your license number and date of birth")
         print("  3. Click 'Make an Appointment'")
         print("  4. Enter your zip code and click the arrow")
@@ -159,9 +234,6 @@ def get_session_token() -> tuple[str, dict, str, str, list]:
             if i > 0 and i % 20 == 0:
                 print(f"  Still waiting... ({i}s)")
 
-        if not dates_data:
-            print("  ✗ Timed out after 3 minutes")
-
         raw_cookies = context.cookies()
         cookies = {c["name"]: c["value"] for c in raw_cookies}
         browser.close()
@@ -169,69 +241,41 @@ def get_session_token() -> tuple[str, dict, str, str, list]:
     return token, cookies, service_id, clicked_office_id, dates_data
 
 
-# ── Times fetcher ─────────────────────────────────────────────────────────────
-
-def get_times_for_date(
-    public_id: str,
-    date_str: str,
-    session: requests.Session
-) -> list[str]:
-    """
-    Fetch available times for a specific office + date.
-    Returns list of 24hr time strings e.g. ["10:20", "13:20", "13:40"]
-    No token needed — just session cookies.
-    """
+def get_times_for_date(public_id: str, date_str: str, session: requests.Session) -> list[str]:
     url = TIMES_URL.format(publicId=public_id)
-    params = {
-        "date":              date_str,
-        "services[]":        SERVICE_ID,
-        "numberOfCustomers": "1",
-    }
+    params = {"date": date_str, "services[]": SERVICE_ID, "numberOfCustomers": "1"}
     try:
         resp = session.get(url, params=params, headers=HEADERS, timeout=10)
         resp.raise_for_status()
         return resp.json()
-    except Exception as e:
-        print(f"      Times fetch failed for {date_str}: {e}")
+    except:
         return []
 
 
-# ── Filter helpers ────────────────────────────────────────────────────────────
-
 def passes_day_filter(date_str: str, prefs: dict) -> bool:
-    """Check if a date falls on an allowed day."""
-    day_filter   = prefs.get("day_filter", "all")
-    allowed_days = prefs.get("allowed_days", [0,1,2,3,4])
-    within_days  = prefs.get("within_days")
-
+    day_filter  = prefs.get("day_filter", "all")
+    within_days = prefs.get("within_days")
     dt = datetime.strptime(date_str, "%Y-%m-%d")
-
     if within_days:
-        cutoff = datetime.now() + timedelta(days=within_days)
-        if dt > cutoff:
+        if dt > datetime.now() + timedelta(days=int(within_days)):
             return False
-
     if day_filter == "all":
         return True
     elif day_filter == "weekdays":
         return dt.weekday() < 5
     elif day_filter == "custom":
-        return dt.weekday() in allowed_days
-
+        return dt.weekday() in (prefs.get("allowed_days") or [0,1,2,3,4])
     return True
 
 
 def passes_time_filter(time_str: str, prefs: dict) -> bool:
-    """Check if a time falls within the user's preferred window."""
     time_filter = prefs.get("time_filter", "all")
     if time_filter == "all":
         return True
-
     try:
         t = datetime.strptime(time_str, "%H:%M").time()
     except:
         return True
-
     if time_filter == "morning":
         return t < datetime.strptime("12:00", "%H:%M").time()
     elif time_filter == "afternoon":
@@ -240,39 +284,23 @@ def passes_time_filter(time_str: str, prefs: dict) -> bool:
         t_from = datetime.strptime(prefs.get("time_from", "00:00"), "%H:%M").time()
         t_to   = datetime.strptime(prefs.get("time_to",   "23:59"), "%H:%M").time()
         return t_from <= t <= t_to
-
     return True
 
 
-# ── Main parse ────────────────────────────────────────────────────────────────
-
-def parse_slots_with_times(
-    dates_response: list[dict],
-    target_office_id: str,
-    distance_mi: float,
-    session: requests.Session,
-    prefs: dict,
-) -> list[Slot]:
-    """
-    For each available date, fetch times and build Slot objects.
-    Applies day + time filters from user prefs.
-    """
+def parse_slots_with_times(dates_response, target_office_id, distance_mi, session, prefs) -> list:
     global SERVICE_ID
-    slots = []
-    info  = OFFICE_INFO.get(target_office_id, {})
+    slots   = []
+    info    = OFFICE_INFO.get(target_office_id, {})
     address = f"{info.get('address', '')}, {info.get('city', '')}"
 
     for entry in dates_response:
         raw_date = entry.get("date", "")
         if not raw_date:
             continue
-
         slot_date  = raw_date.split("T")[0]
         branch_ids = [b["publicId"] for b in entry.get("branches", [])]
         if target_office_id not in branch_ids:
             continue
-
-        # Day filter
         if not passes_day_filter(slot_date, prefs):
             continue
 
@@ -280,49 +308,33 @@ def parse_slots_with_times(
             (b["name"] for b in entry["branches"] if b["publicId"] == target_office_id),
             info.get("city", target_office_id)
         )
-
         office_num = target_office_id.split("!")[0]
         base_url   = f"{BOOKING_URL}?officeId={office_num}&date={slot_date}"
-
-        # Fetch times for this date
-        times = get_times_for_date(target_office_id, slot_date, session)
+        times      = get_times_for_date(target_office_id, slot_date, session)
 
         if times:
             for t in times:
                 if not passes_time_filter(t, prefs):
                     continue
-                booking_url = f"{base_url}&time={t}"
                 slots.append(Slot(
-                    office_id      = target_office_id,
-                    office_name    = office_name,
-                    office_address = address,
-                    distance_mi    = distance_mi,
-                    service_type   = SERVICE_ID,
-                    slot_date      = slot_date,
-                    slot_time      = t,
-                    booking_url    = booking_url,
+                    office_id=target_office_id, office_name=office_name,
+                    office_address=address, distance_mi=distance_mi,
+                    service_type=SERVICE_ID, slot_date=slot_date, slot_time=t,
+                    booking_url=f"{base_url}&time={t}",
                 ))
         else:
-            # No times returned — add date-only slot
             slots.append(Slot(
-                office_id      = target_office_id,
-                office_name    = office_name,
-                office_address = address,
-                distance_mi    = distance_mi,
-                service_type   = SERVICE_ID,
-                slot_date      = slot_date,
-                slot_time      = "",
-                booking_url    = base_url,
+                office_id=target_office_id, office_name=office_name,
+                office_address=address, distance_mi=distance_mi,
+                service_type=SERVICE_ID, slot_date=slot_date, slot_time="",
+                booking_url=base_url,
             ))
-
-        time.sleep(0.5)  # be polite between time requests
+        time.sleep(0.5)
 
     return slots
 
 
-# ── Main run_check ────────────────────────────────────────────────────────────
-
-def run_check(zip_code: str, radius_mi: float, prefs: dict = None) -> list[Slot]:
+def run_check(zip_code: str, radius_mi: float, prefs: dict = None) -> list:
     global SERVICE_ID
     from geo_filter import filter_by_radius, zip_to_coords
     from geopy.distance import geodesic
@@ -331,24 +343,32 @@ def run_check(zip_code: str, radius_mi: float, prefs: dict = None) -> list[Slot]
         from config import DEFAULTS
         prefs = DEFAULTS.copy()
 
-    print("\n── Starting DMV check ──")
+    print(f"\n── DMV check for {zip_code} ──")
 
-    token, cookies, service_id, clicked_office_id, dates_data = get_session_token()
+    # Use automated session if credentials available, else manual
+    dl_number = prefs.get("dl_number", "")
+    dob       = prefs.get("dob", "")
+
+    if dl_number and dob:
+        print("  Using automated login...")
+        token, cookies, service_id, clicked_office_id, dates_data = get_session_automated(
+            dl_number, dob, zip_code
+        )
+    else:
+        print("  No credentials — using manual login...")
+        token, cookies, service_id, clicked_office_id, dates_data = get_session_manual()
 
     if not dates_data:
-        print("  ✗ No data captured — skipping this run")
+        print("  ✗ No data captured")
         return []
 
     if service_id:
         SERVICE_ID = service_id
-        print(f"  Using live service ID from session")
 
     session = requests.Session()
     session.cookies.update(cookies)
 
     all_slots = []
-
-    # Parse the office we clicked — we have its data already
     if clicked_office_id:
         info = OFFICE_INFO.get(clicked_office_id, {})
         if info:
@@ -358,25 +378,17 @@ def run_check(zip_code: str, radius_mi: float, prefs: dict = None) -> list[Slot]
                 distance      = round(geodesic(user_coords, office_coords).miles, 1)
             except:
                 distance = 0.0
-
             print(f"  Parsing slots for {info.get('city', clicked_office_id)}...")
-            slots = parse_slots_with_times(
-                dates_data, clicked_office_id, distance, session, prefs
-            )
+            slots = parse_slots_with_times(dates_data, clicked_office_id, distance, session, prefs)
             print(f"    → {len(slots)} slots after filters")
             all_slots.extend(slots)
 
-    print(f"\nTotal slots found: {len(all_slots)}")
+    print(f"Total slots found: {len(all_slots)}")
     return all_slots
 
 
 if __name__ == "__main__":
     from config import DEFAULTS
-    prefs = DEFAULTS.copy()
-    prefs["time_filter"]  = "all"
-    prefs["day_filter"]   = "all"
-    prefs["within_days"]  = None
-
-    slots = run_check("95035", radius_mi=25, prefs=prefs)
+    slots = run_check("95035", radius_mi=25, prefs=DEFAULTS.copy())
     for s in slots[:5]:
-        print(f"{s.display_datetime} | {s.office_name} | {s.distance_mi} mi | {s.booking_url}")
+        print(f"{s.display_datetime} | {s.office_name} | {s.booking_url}")
