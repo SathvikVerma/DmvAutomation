@@ -178,12 +178,29 @@ def get_session_automated(dl_number: str, dob: str, zip_code: str) -> tuple:
 
             page.wait_for_timeout(2000)
 
+            # Debug: check field values BEFORE submitting
+            field_state = page.evaluate("""
+                () => {
+                    const inputs = Array.from(document.querySelectorAll('input:not([type="checkbox"])'));
+                    return inputs.map(i => ({
+                        id: i.id, name: i.name, value: i.value,
+                        valid: i.validity ? i.validity.valid : 'n/a',
+                        required: i.required
+                    })).filter(i => i.value || i.required);
+                }
+            """)
+            print("  Field state before submit:", field_state)
+
+            errors = page.evaluate("""
+                () => Array.from(document.querySelectorAll('.error, .invalid, [class*="error"], [role="alert"]'))
+                    .map(e => e.textContent.trim()).filter(t => t.length > 0 && t.length < 100)
+            """)
+            print("  Validation errors:", errors[:5])
+
             # Step 4: Click Make an Appointment (must be the exact appointment button, not header search)
             clicked_submit = page.evaluate("""
                 () => {
-                    // Find buttons/links whose visible text is exactly about making an appointment
                     const candidates = Array.from(document.querySelectorAll('button, a, input[type="submit"]'));
-                    // Exclude anything inside the site header
                     const header = document.querySelector('header');
                     const valid = candidates.filter(b => {
                         if (header && header.contains(b)) return false;
@@ -210,11 +227,6 @@ def get_session_automated(dl_number: str, dob: str, zip_code: str) -> tuple:
                     })).filter(b => b.text.length > 0)
                 """)
                 print("  All buttons:", buttons[:20])
-                try:
-                    page.evaluate("document.querySelector('form').submit()")
-                    print("  Tried form.submit()")
-                except:
-                    pass
 
             page.wait_for_timeout(4000)
             print("  URL after submit:", page.url)
