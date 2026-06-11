@@ -181,10 +181,10 @@ def get_session_automated(dl_number: str, dob: str, zip_code: str) -> tuple:
             # Step 4: Click Make an Appointment
             clicked_submit = False
             for selector in [
-                "button[type='submit']",
-                "input[type='submit']",
                 "button:has-text('Make an Appointment')",
                 "a:has-text('Make an Appointment')",
+                "form button[type='submit']:not(#site-header-search-input ~ button)",
+                ".appointment-form button[type='submit']",
             ]:
                 try:
                     page.click(selector, timeout=3000)
@@ -195,14 +195,25 @@ def get_session_automated(dl_number: str, dob: str, zip_code: str) -> tuple:
                     continue
 
             if not clicked_submit:
-                buttons = page.evaluate("""
-                    () => Array.from(document.querySelectorAll('button, input[type="submit"], a')).map(b => ({
-                        tag: b.tagName, type: b.type, id: b.id,
-                        text: b.textContent.trim().substring(0, 40),
-                        classes: b.className
-                    })).filter(b => b.text.length > 0)
+                # JavaScript: find the button whose text is "Make an Appointment"
+                clicked_submit = page.evaluate("""
+                    () => {
+                        const btns = Array.from(document.querySelectorAll('button, a, input[type="submit"]'));
+                        const sel = btns.find(b => (b.textContent || b.value || '').trim().toLowerCase().includes('make an appointment'));
+                        if (sel) { sel.click(); return true; }
+                        return false;
+                    }
                 """)
-                print("  All buttons:", buttons[:15])
+                if clicked_submit:
+                    print("  ✓ Clicked Make an Appointment via JavaScript")
+                else:
+                    buttons = page.evaluate("""
+                        () => Array.from(document.querySelectorAll('button, input[type="submit"], a')).map(b => ({
+                            tag: b.tagName, type: b.type, id: b.id,
+                            text: (b.textContent || b.value || '').trim().substring(0, 40)
+                        })).filter(b => b.text.length > 0)
+                    """)
+                    print("  All buttons:", buttons[:20])
                 try:
                     page.evaluate("document.querySelector('form').submit()")
                     print("  Tried form.submit()")
