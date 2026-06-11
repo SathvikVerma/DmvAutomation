@@ -206,50 +206,55 @@ def get_session_automated(dl_number: str, dob: str, zip_code: str) -> tuple:
             page.wait_for_timeout(4000)
             print("  URL after submit:", page.url)
 
-            # Step 5: Enter zip code on location page
+           # Step 5: Enter zip code on location page
             try:
                 page.wait_for_url("**/select-location/**", timeout=8000)
-                page.wait_for_timeout(2000)
-                for placeholder in ["Search here...", "Zip Code", "Enter zip", "Search"]:
+                page.wait_for_timeout(3000)
+
+                # The zip field has placeholder "Enter City or ZIP Code"
+                filled_zip = False
+                for selector in ["input[placeholder*='ZIP' i]",
+                                 "input[placeholder*='City' i]",
+                                 "input[placeholder*='Enter' i]"]:
                     try:
-                        zip_input = page.get_by_placeholder(placeholder).last
-                        zip_input.fill(zip_code)
-                        print(f"  ✓ Entered zip: {zip_code}")
+                        zf = page.locator(selector).first
+                        zf.wait_for(timeout=3000)
+                        zf.click()
+                        zf.fill(zip_code)
+                        print(f"  ✓ Entered zip via {selector}")
+                        filled_zip = True
                         break
                     except:
                         continue
 
                 page.wait_for_timeout(1000)
 
-                # Click Continue to search for offices
-                clicked_continue = page.evaluate("""
+                # Click the arrow button (→) next to the zip field, then fallback to Enter
+                clicked_arrow = page.evaluate("""
                     () => {
-                        const btns = Array.from(document.querySelectorAll('button, a, input[type="submit"]'));
-                        const header = document.querySelector('header');
-                        const sel = btns.find(b => {
-                            if (header && header.contains(b)) return false;
-                            const t = (b.textContent || b.value || '').trim().toLowerCase();
-                            return t === 'continue';
-                        });
-                        if (sel) { sel.scrollIntoView(); sel.click(); return true; }
+                        // Find the zip input, then the button right after it
+                        const inputs = Array.from(document.querySelectorAll('input'));
+                        const zipInput = inputs.find(i =>
+                            /zip|city|enter/i.test(i.placeholder || ''));
+                        if (zipInput) {
+                            // Look for a sibling/nearby button
+                            let parent = zipInput.closest('div, form');
+                            if (parent) {
+                                const btn = parent.querySelector('button');
+                                if (btn) { btn.click(); return true; }
+                            }
+                        }
                         return false;
                     }
                 """)
-                if clicked_continue:
-                    print("  ✓ Clicked Continue")
+                if clicked_arrow:
+                    print("  ✓ Clicked search arrow")
                 else:
-                    page.keyboard.press("Enter")
-                    print("  Pressed Enter to search")
+                    page.locator("input[placeholder*='ZIP' i]").first.press("Enter")
+                    print("  Pressed Enter in zip field")
 
-                # Wait for offices to load
-                page.wait_for_timeout(6000)
-
-                # Debug: show what's on the page now
-                loc_buttons = page.evaluate("""
-                    () => Array.from(document.querySelectorAll('button, a')).map(b =>
-                        (b.textContent || '').trim()).filter(t => t.length > 2 && t.length < 50)
-                """)
-                print("  Buttons after Continue:", loc_buttons[:25])
+                # Wait for office list to filter/load
+                page.wait_for_timeout(7000)
 
                 # Step 6: Click first Select Location button
                 clicked_loc = page.evaluate("""
@@ -257,7 +262,7 @@ def get_session_automated(dl_number: str, dob: str, zip_code: str) -> tuple:
                         const btns = Array.from(document.querySelectorAll('button, a'));
                         const sel = btns.find(b => {
                             const t = (b.textContent || '').trim().toLowerCase();
-                            return t.includes('select') && t.includes('location');
+                            return t === 'select location';
                         });
                         if (sel) { sel.scrollIntoView(); sel.click(); return sel.textContent.trim(); }
                         return null;
@@ -265,9 +270,9 @@ def get_session_automated(dl_number: str, dob: str, zip_code: str) -> tuple:
                 """)
                 if clicked_loc:
                     print(f"  ✓ Clicked: {clicked_loc}")
-                    page.wait_for_timeout(6000)
+                    page.wait_for_timeout(8000)
                 else:
-                    print("  Could not find Select Location button yet")
+                    print("  Could not find Select Location button")
 
             except Exception as e:
                 print(f"  Location page error: {e}")
