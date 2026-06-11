@@ -214,20 +214,42 @@ def get_session_automated(dl_number: str, dob: str, zip_code: str) -> tuple:
                     try:
                         zip_input = page.get_by_placeholder(placeholder).last
                         zip_input.fill(zip_code)
-                        page.keyboard.press("Enter")
                         print(f"  ✓ Entered zip: {zip_code}")
                         break
                     except:
                         continue
 
-                page.wait_for_timeout(5000)
+                page.wait_for_timeout(1000)
 
-                # Debug: show what's on the location page
+                # Click Continue to search for offices
+                clicked_continue = page.evaluate("""
+                    () => {
+                        const btns = Array.from(document.querySelectorAll('button, a, input[type="submit"]'));
+                        const header = document.querySelector('header');
+                        const sel = btns.find(b => {
+                            if (header && header.contains(b)) return false;
+                            const t = (b.textContent || b.value || '').trim().toLowerCase();
+                            return t === 'continue';
+                        });
+                        if (sel) { sel.scrollIntoView(); sel.click(); return true; }
+                        return false;
+                    }
+                """)
+                if clicked_continue:
+                    print("  ✓ Clicked Continue")
+                else:
+                    page.keyboard.press("Enter")
+                    print("  Pressed Enter to search")
+
+                # Wait for offices to load
+                page.wait_for_timeout(6000)
+
+                # Debug: show what's on the page now
                 loc_buttons = page.evaluate("""
                     () => Array.from(document.querySelectorAll('button, a')).map(b =>
                         (b.textContent || '').trim()).filter(t => t.length > 2 && t.length < 50)
                 """)
-                print("  Location page buttons:", loc_buttons[:25])
+                print("  Buttons after Continue:", loc_buttons[:25])
 
                 # Step 6: Click first Select Location button
                 clicked_loc = page.evaluate("""
@@ -245,7 +267,7 @@ def get_session_automated(dl_number: str, dob: str, zip_code: str) -> tuple:
                     print(f"  ✓ Clicked: {clicked_loc}")
                     page.wait_for_timeout(6000)
                 else:
-                    print("  Could not find Select Location button")
+                    print("  Could not find Select Location button yet")
 
             except Exception as e:
                 print(f"  Location page error: {e}")
