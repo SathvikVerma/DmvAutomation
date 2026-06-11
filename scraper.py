@@ -125,26 +125,27 @@ def get_session_automated(dl_number: str, dob: str, zip_code: str) -> tuple:
         page.wait_for_timeout(3000)
 
         try:
-            # Step 1: Check the DT (Drive Test/Automobile) checkbox
+            # Step 1: Click the label for DT checkbox (label intercepts pointer events)
             print("  Checking DT checkbox...")
             try:
-                page.check("#DT", timeout=5000)
-                print("  ✓ Checked Drive Test checkbox")
+                page.click("label[for='DT']", timeout=5000)
+                print("  ✓ Clicked DT label")
             except:
                 try:
-                    page.click("input[name='DT']", timeout=3000)
-                    print("  ✓ Clicked DT input")
+                    page.evaluate("document.getElementById('DT').click()")
+                    print("  ✓ Checked DT via JavaScript")
                 except Exception as e:
                     print(f"  Could not check DT: {e}")
 
-            page.wait_for_timeout(2000)
+            page.wait_for_timeout(3000)
 
             # Step 2: Fill license number
             filled_dl = False
-            for placeholder in ["A1234567", "License Number", "DL Number", "license"]:
+            for selector in ["#dl-number", "#licenseNumber", "input[name='dl']",
+                              "input[name='licenseNumber']", "input[type='text']"]:
                 try:
-                    field = page.get_by_placeholder(placeholder)
-                    field.wait_for(timeout=5000)
+                    field = page.locator(selector).first
+                    field.wait_for(timeout=3000)
                     field.fill(dl_number)
                     print("  ✓ Entered license number")
                     filled_dl = True
@@ -153,7 +154,12 @@ def get_session_automated(dl_number: str, dob: str, zip_code: str) -> tuple:
                     continue
 
             if not filled_dl:
-                print("  Could not find license field")
+                inputs = page.evaluate("""
+                    () => Array.from(document.querySelectorAll('input:not([type="checkbox"])')).map(i => ({
+                        type: i.type, name: i.name, id: i.id, placeholder: i.placeholder
+                    }))
+                """)
+                print("  Visible inputs:", inputs)
 
             # Step 3: Fill DOB
             for placeholder in ["mm/dd/yyyy", "MM/DD/YYYY", "Date of Birth", "DOB"]:
