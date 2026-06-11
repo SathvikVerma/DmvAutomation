@@ -158,9 +158,9 @@ def get_session_automated(dl_number: str, dob: str, zip_code: str) -> tuple:
                 print("  Could not find dlNumber field")
 
             # Step 3: Fill DOB
-            for placeholder in ["mm/dd/yyyy", "MM/DD/YYYY", "Date of Birth", "DOB"]:
+            for selector in ["#dob", "input[name='dob']"]:
                 try:
-                    field = page.get_by_placeholder(placeholder)
+                    field = page.locator(selector).first
                     field.wait_for(timeout=5000)
                     field.click()
                     field.type(dob, delay=50)
@@ -172,26 +172,7 @@ def get_session_automated(dl_number: str, dob: str, zip_code: str) -> tuple:
 
             page.wait_for_timeout(2000)
 
-            # Debug: check field values BEFORE submitting
-            field_state = page.evaluate("""
-                () => {
-                    const inputs = Array.from(document.querySelectorAll('input:not([type="checkbox"])'));
-                    return inputs.map(i => ({
-                        id: i.id, name: i.name, value: i.value,
-                        valid: i.validity ? i.validity.valid : 'n/a',
-                        required: i.required
-                    })).filter(i => i.value || i.required);
-                }
-            """)
-            print("  Field state before submit:", field_state)
-
-            errors = page.evaluate("""
-                () => Array.from(document.querySelectorAll('.error, .invalid, [class*="error"], [role="alert"]'))
-                    .map(e => e.textContent.trim()).filter(t => t.length > 0 && t.length < 100)
-            """)
-            print("  Validation errors:", errors[:5])
-
-            # Step 4: Click Make an Appointment (must be the exact appointment button, not header search)
+            # Step 4: Click Make an Appointment (exclude site header search button)
             clicked_submit = page.evaluate("""
                 () => {
                     const candidates = Array.from(document.querySelectorAll('button, a, input[type="submit"]'));
@@ -238,26 +219,33 @@ def get_session_automated(dl_number: str, dob: str, zip_code: str) -> tuple:
                         break
                     except:
                         continue
-                page.wait_for_timeout(4000)
 
-                # Step 6: Click first Select Location
-                try:
-                    btns = page.get_by_text("Select Location").all()
-                    if btns:
-                        btns[0].click()
-                        print("  ✓ Clicked: Select Location")
-                        page.wait_for_timeout(5000)
-                    else:
-                        page.evaluate("""
-                            () => {
-                                const btns = Array.from(document.querySelectorAll('button, a'));
-                                const sel = btns.find(b => b.textContent.includes('Select Location'));
-                                if (sel) sel.click();
-                            }
-                        """)
-                        page.wait_for_timeout(3000)
-                except Exception as e:
-                    print(f"  Select Location error: {e}")
+                page.wait_for_timeout(5000)
+
+                # Debug: show what's on the location page
+                loc_buttons = page.evaluate("""
+                    () => Array.from(document.querySelectorAll('button, a')).map(b =>
+                        (b.textContent || '').trim()).filter(t => t.length > 2 && t.length < 50)
+                """)
+                print("  Location page buttons:", loc_buttons[:25])
+
+                # Step 6: Click first Select Location button
+                clicked_loc = page.evaluate("""
+                    () => {
+                        const btns = Array.from(document.querySelectorAll('button, a'));
+                        const sel = btns.find(b => {
+                            const t = (b.textContent || '').trim().toLowerCase();
+                            return t.includes('select') && t.includes('location');
+                        });
+                        if (sel) { sel.scrollIntoView(); sel.click(); return sel.textContent.trim(); }
+                        return null;
+                    }
+                """)
+                if clicked_loc:
+                    print(f"  ✓ Clicked: {clicked_loc}")
+                    page.wait_for_timeout(6000)
+                else:
+                    print("  Could not find Select Location button")
 
             except Exception as e:
                 print(f"  Location page error: {e}")
