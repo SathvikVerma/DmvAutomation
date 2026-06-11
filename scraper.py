@@ -139,13 +139,12 @@ def get_session_automated(dl_number: str, dob: str, zip_code: str) -> tuple:
 
             page.wait_for_timeout(3000)
 
-            # Step 2: Fill license number using type() to trigger validation
+            # Step 2: Fill license number - use the correct field ID
             filled_dl = False
-            for selector in ["#dl-number", "#licenseNumber", "input[name='dl']",
-                              "input[name='licenseNumber']", "input[type='text']"]:
+            for selector in ["#dlNumber", "input[name='dlNumber']"]:
                 try:
                     field = page.locator(selector).first
-                    field.wait_for(timeout=3000)
+                    field.wait_for(timeout=5000)
                     field.click()
                     field.type(dl_number, delay=50)
                     page.keyboard.press("Tab")
@@ -156,12 +155,7 @@ def get_session_automated(dl_number: str, dob: str, zip_code: str) -> tuple:
                     continue
 
             if not filled_dl:
-                inputs = page.evaluate("""
-                    () => Array.from(document.querySelectorAll('input:not([type="checkbox"])')).map(i => ({
-                        type: i.type, name: i.name, id: i.id, placeholder: i.placeholder
-                    }))
-                """)
-                print("  Visible inputs:", inputs)
+                print("  Could not find dlNumber field")
 
             # Step 3: Fill DOB
             for placeholder in ["mm/dd/yyyy", "MM/DD/YYYY", "Date of Birth", "DOB"]:
