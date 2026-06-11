@@ -101,9 +101,11 @@ def get_session_automated(dl_number: str, dob: str, zip_code: str) -> tuple:
 
         def on_response(response):
             nonlocal token, service_id, clicked_office_id, dates_data
-            # Log any branches/dates related URLs for debugging
-            if "branches" in response.url or "/dates" in response.url:
-                print(f"  [response] {response.url[:140]}")
+            # Log API-like requests (json endpoints, wp-json, appointment calls)
+            url = response.url
+            if any(k in url for k in ["wp-json", "/api/", "appointment", "branches",
+                                       "dates", "available", "calendar", "slot"]):
+                print(f"  [response] {url[:150]}")
             if "branches/" in response.url and "dates" in response.url:
                 svc_match = re.search(r'services%5B%5D=([^&]+)', response.url)
                 if svc_match:
