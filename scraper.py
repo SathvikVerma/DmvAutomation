@@ -169,34 +169,41 @@ def get_session_automated(dl_number: str, dob: str, zip_code: str) -> tuple:
                 except:
                     continue
 
-            page.wait_for_timeout(1000)
+            page.wait_for_timeout(2000)
 
-            # Step 4: Click Make an Appointment
-            for text in ["Make an Appointment", "Make Appointment", "Continue", "Next"]:
+            # Step 4: Click Make an Appointment button
+            clicked_submit = False
+            for selector in [
+                "button[type='submit']",
+                "input[type='submit']",
+                "button:has-text('Make an Appointment')",
+                "a:has-text('Make an Appointment')",
+                ".make-appt-btn",
+                "#make-appointment",
+            ]:
                 try:
-                    page.get_by_text(text).click(timeout=3000)
-                    print(f"  ✓ Clicked: {text}")
+                    page.click(selector, timeout=3000)
+                    print(f"  ✓ Clicked submit via: {selector}")
+                    clicked_submit = True
                     break
                 except:
                     continue
 
+            if not clicked_submit:
+                # Debug: show all buttons
+                buttons = page.evaluate("""
+                    () => Array.from(document.querySelectorAll('button, input[type="submit"], a')).map(b => ({
+                        tag: b.tagName, type: b.type, id: b.id, text: b.textContent.trim().substring(0, 40),
+                        classes: b.className
+                    })).filter(b => b.text.length > 0)
+                """)
+                print("  All buttons:", buttons[:15])
+                # Try JavaScript submit
+                page.evaluate("document.querySelector('form').submit()")
+                print("  Tried form.submit()")
+
             page.wait_for_timeout(4000)
             print("  URL after submit:", page.url)
-
-            # Step 5: Enter zip code on location page
-            try:
-                page.wait_for_url("**/select-location/**", timeout=8000)
-                page.wait_for_timeout(2000)
-                for placeholder in ["Search here...", "Zip Code", "Enter zip", "Search"]:
-                    try:
-                        zip_input = page.get_by_placeholder(placeholder).last
-                        zip_input.fill(zip_code)
-                        page.keyboard.press("Enter")
-                        print(f"  ✓ Entered zip: {zip_code}")
-                        break
-                    except:
-                        continue
-                page.wait_for_timeout(4000)
 
                 # Step 6: Click first Select Location
                 try:
