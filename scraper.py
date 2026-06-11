@@ -106,6 +106,13 @@ def get_session_automated(dl_number: str, dob: str, zip_code: str) -> tuple:
             if any(k in url for k in ["wp-json", "/api/", "appointment", "branches",
                                        "dates", "available", "calendar", "slot"]):
                 print(f"  [response] {url[:150]}")
+            # Capture the available endpoint body to inspect its structure
+            if "appointment/available" in url:
+                try:
+                    body = response.json()
+                    print(f"  [available] type={type(body).__name__} sample={str(body)[:500]}")
+                except Exception as e:
+                    print(f"  [available] parse failed: {e}")
             if "branches/" in response.url and "dates" in response.url:
                 svc_match = re.search(r'services%5B%5D=([^&]+)', response.url)
                 if svc_match:
