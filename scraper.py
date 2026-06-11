@@ -140,39 +140,36 @@ def get_session_automated(dl_number: str, dob: str, zip_code: str) -> tuple:
             page.wait_for_timeout(3000)
 
             # Step 2: Fill license number
+            # Step 2: Fill license number with proper events
             filled_dl = False
             for selector in ["#dl-number", "#licenseNumber", "input[name='dl']",
                               "input[name='licenseNumber']", "input[type='text']"]:
                 try:
                     field = page.locator(selector).first
                     field.wait_for(timeout=3000)
-                    field.fill(dl_number)
+                    field.click()
+                    field.type(dl_number, delay=50)
+                    page.keyboard.press("Tab")
                     print("  ✓ Entered license number")
                     filled_dl = True
                     break
                 except:
                     continue
 
-            if not filled_dl:
-                inputs = page.evaluate("""
-                    () => Array.from(document.querySelectorAll('input:not([type="checkbox"])')).map(i => ({
-                        type: i.type, name: i.name, id: i.id, placeholder: i.placeholder
-                    }))
-                """)
-                print("  Visible inputs:", inputs)
-
-            # Step 3: Fill DOB
+            # Step 3: Fill DOB with proper events
             for placeholder in ["mm/dd/yyyy", "MM/DD/YYYY", "Date of Birth", "DOB"]:
                 try:
                     field = page.get_by_placeholder(placeholder)
                     field.wait_for(timeout=5000)
-                    field.fill(dob)
+                    field.click()
+                    field.type(dob, delay=50)
+                    page.keyboard.press("Tab")
                     print("  ✓ Entered DOB")
                     break
                 except:
                     continue
 
-            page.wait_for_timeout(500)
+            page.wait_for_timeout(1000)
 
             # Step 4: Click Make an Appointment
             for text in ["Make an Appointment", "Make Appointment", "Continue", "Next"]:
