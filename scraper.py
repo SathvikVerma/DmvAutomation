@@ -79,13 +79,14 @@ class Slot:
 
 
 def get_session_automated(dl_number: str, dob: str, zip_code: str) -> tuple:
-    """Fully automated Playwright session using stored credentials."""
+    """Fully automated Playwright session. Captures the 'available offices' list
+    and the session cookies, then queries the dates endpoint directly for each
+    nearby office (no fragile calendar-UI clicking)."""
     global SERVICE_ID
     token             = None
     cookies           = {}
     service_id        = None
-    clicked_office_id = None
-    dates_data        = []
+    available_offices = []   # list of {publicId, name, addressLine1, addressZip}
 
     with sync_playwright() as p:
         browser = p.chromium.launch(
@@ -100,34 +101,23 @@ def get_session_automated(dl_number: str, dob: str, zip_code: str) -> tuple:
         page = context.new_page()
 
         def on_response(response):
-            nonlocal token, service_id, clicked_office_id, dates_data
-            # Log API-like requests (json endpoints, wp-json, appointment calls)
+            nonlocal service_id, available_offices
             url = response.url
-            if any(k in url for k in ["wp-json", "/api/", "appointment", "branches",
-                                       "dates", "available", "calendar", "slot"]):
-                print(f"  [response] {url[:150]}")
-            # Capture the available endpoint body to inspect its structure
+            # Capture the service id from the available request URL
             if "appointment/available" in url:
-                try:
-                    body = response.json()
-                    print(f"  [available] type={type(body).__name__} sample={str(body)[:500]}")
-                except Exception as e:
-                    print(f"  [available] parse failed: {e}")
-            if "branches/" in response.url and "dates" in response.url:
-                svc_match = re.search(r'services%5B%5D=([^&]+)', response.url)
+                svc_match = re.search(r'services%5B%5D=([^&]+)', url)
+                if not svc_match:
+                    svc_match = re.search(r'services\[\]=([^&]+)', url)
                 if svc_match:
                     service_id = urllib.parse.unquote(svc_match.group(1))
-                office_match = re.search(r'branches/([^/]+)/dates', response.url)
-                if office_match:
-                    clicked_office_id = urllib.parse.unquote(office_match.group(1))
-                token_match = re.search(r'token=([^&]+)', response.url)
-                if token_match:
-                    token = token_match.group(1)
+                # Capture the list of available offices
                 try:
-                    dates_data = response.json()
-                    print(f"  ✓ Captured {len(dates_data)} date entries!")
+                    body = response.json()
+                    if isinstance(body, list) and body:
+                        available_offices = body
+                        print(f"  ✓ Captured {len(body)} available offices")
                 except Exception as e:
-                    print(f"  [response] matched dates URL but JSON parse failed: {e}")
+                    print(f"  [available] parse failed: {e}")
 
         page.on("response", on_response)
 
@@ -151,8 +141,7 @@ def get_session_automated(dl_number: str, dob: str, zip_code: str) -> tuple:
 
             page.wait_for_timeout(3000)
 
-            # Step 2: Fill license number - use the correct field ID
-            filled_dl = False
+            # Step 2: Fill license number
             for selector in ["#dlNumber", "input[name='dlNumber']"]:
                 try:
                     field = page.locator(selector).first
@@ -161,13 +150,9 @@ def get_session_automated(dl_number: str, dob: str, zip_code: str) -> tuple:
                     field.type(dl_number, delay=50)
                     page.keyboard.press("Tab")
                     print("  ✓ Entered license number")
-                    filled_dl = True
                     break
                 except:
                     continue
-
-            if not filled_dl:
-                print("  Could not find dlNumber field")
 
             # Step 3: Fill DOB
             for selector in ["#dob", "input[name='dob']"]:
@@ -184,7 +169,7 @@ def get_session_automated(dl_number: str, dob: str, zip_code: str) -> tuple:
 
             page.wait_for_timeout(2000)
 
-            # Step 4: Click Make an Appointment (exclude site header search button)
+            # Step 4: Click Make an Appointment (this triggers the available/ call)
             clicked_submit = page.evaluate("""
                 () => {
                     const candidates = Array.from(document.querySelectorAll('button, a, input[type="submit"]'));
@@ -197,117 +182,34 @@ def get_session_automated(dl_number: str, dob: str, zip_code: str) -> tuple:
                     if (valid.length > 0) {
                         valid[0].scrollIntoView();
                         valid[0].click();
-                        return valid[0].textContent.trim().substring(0, 50);
+                        return true;
                     }
-                    return null;
+                    return false;
                 }
             """)
-
             if clicked_submit:
-                print(f"  ✓ Clicked appointment button: {clicked_submit}")
+                print("  ✓ Clicked Make an Appointment")
             else:
-                buttons = page.evaluate("""
-                    () => Array.from(document.querySelectorAll('button, input[type="submit"], a')).map(b => ({
-                        tag: b.tagName, type: b.type, id: b.id,
-                        text: (b.textContent || b.value || '').trim().substring(0, 40),
-                        inHeader: document.querySelector('header')?.contains(b) || false
-                    })).filter(b => b.text.length > 0)
-                """)
-                print("  All buttons:", buttons[:20])
+                print("  Could not click Make an Appointment")
 
-            page.wait_for_timeout(4000)
-            print("  URL after submit:", page.url)
-
-            # Step 5: Enter zip code on location page
-            try:
-                page.wait_for_url("**/select-location/**", timeout=8000)
-                page.wait_for_timeout(3000)
-
-                # The zip field has placeholder "Enter City or ZIP Code"
-                filled_zip = False
-                for selector in ["input[placeholder*='ZIP' i]",
-                                 "input[placeholder*='City' i]",
-                                 "input[placeholder*='Enter' i]"]:
-                    try:
-                        zf = page.locator(selector).first
-                        zf.wait_for(timeout=3000)
-                        zf.click()
-                        zf.fill(zip_code)
-                        print(f"  ✓ Entered zip via {selector}")
-                        filled_zip = True
-                        break
-                    except:
-                        continue
-
+            # Wait for the available/ endpoint to return the office list
+            for _ in range(15):
+                if available_offices:
+                    break
                 page.wait_for_timeout(1000)
-
-                # Click the arrow button (→) next to the zip field
-                clicked_arrow = page.evaluate("""
-                    () => {
-                        const inputs = Array.from(document.querySelectorAll('input'));
-                        const zipInput = inputs.find(i =>
-                            /zip|city|enter/i.test(i.placeholder || ''));
-                        if (zipInput) {
-                            let parent = zipInput.closest('div, form');
-                            if (parent) {
-                                const btn = parent.querySelector('button');
-                                if (btn) { btn.click(); return true; }
-                            }
-                        }
-                        return false;
-                    }
-                """)
-                if clicked_arrow:
-                    print("  ✓ Clicked search arrow")
-                else:
-                    try:
-                        page.locator("input[placeholder*='ZIP' i]").first.press("Enter")
-                        print("  Pressed Enter in zip field")
-                    except:
-                        pass
-
-                # Wait for office list to filter/load
-                page.wait_for_timeout(7000)
-
-                # Step 6: Click first Select Location button (exact match)
-                clicked_loc = page.evaluate("""
-                    () => {
-                        const btns = Array.from(document.querySelectorAll('button, a'));
-                        const sel = btns.find(b => {
-                            const t = (b.textContent || '').trim().toLowerCase();
-                            return t === 'select location';
-                        });
-                        if (sel) { sel.scrollIntoView(); sel.click(); return sel.textContent.trim(); }
-                        return null;
-                    }
-                """)
-                if clicked_loc:
-                    print(f"  ✓ Clicked Select Location")
-                    page.wait_for_timeout(8000)
-                else:
-                    print("  Could not find Select Location button")
-
-            except Exception as e:
-                print(f"  Location page error: {e}")
-                print("  URL at error:", page.url)
 
         except Exception as e:
             print(f"  Automation step failed: {e}")
 
-        # Wait for dates response
-        for _ in range(30):
-            if dates_data:
-                break
-            page.wait_for_timeout(1000)
-
-        if not dates_data:
-            print("  ✗ Could not capture dates automatically")
-
+        # Grab cookies for direct API calls
         raw_cookies = context.cookies()
         cookies = {c["name"]: c["value"] for c in raw_cookies}
         browser.close()
 
-    return token, cookies, service_id, clicked_office_id, dates_data
+    if service_id:
+        SERVICE_ID = service_id
+
+    return token, cookies, service_id, available_offices
 
 
 def get_session_manual() -> tuple:
@@ -379,6 +281,18 @@ def get_times_for_date(public_id: str, date_str: str, session: requests.Session)
         resp.raise_for_status()
         return resp.json()
     except:
+        return []
+
+
+def get_dates_for_office(public_id: str, session: requests.Session) -> list:
+    """Call the dates endpoint directly for one office using session cookies."""
+    url = DATES_URL.format(publicId=public_id)
+    params = {"services[]": SERVICE_ID, "numberOfCustomers": "1"}
+    try:
+        resp = session.get(url, params=params, headers=HEADERS, timeout=10)
+        resp.raise_for_status()
+        return resp.json()
+    except Exception as e:
         return []
 
 
@@ -480,40 +394,111 @@ def run_check(zip_code: str, radius_mi: float, prefs: dict = None) -> list:
 
     if dl_number and dob:
         print("  Using automated login...")
-        token, cookies, service_id, clicked_office_id, dates_data = get_session_automated(
+        token, cookies, service_id, available_offices = get_session_automated(
             dl_number, dob, zip_code
         )
     else:
         print("  No credentials — using manual login...")
+        # Manual mode still returns the old 5-tuple; adapt it
         token, cookies, service_id, clicked_office_id, dates_data = get_session_manual()
-
-    if not dates_data:
-        print("  ✗ No data captured")
-        return []
+        available_offices = []
 
     if service_id:
         SERVICE_ID = service_id
 
+    if not available_offices:
+        print("  ✗ No available offices captured")
+        return []
+
     session = requests.Session()
     session.cookies.update(cookies)
 
+    # Determine user coordinates for distance filtering
+    try:
+        user_coords = zip_to_coords(zip_code)
+    except:
+        user_coords = None
+
+    # Filter offices by radius, then query dates for each
     all_slots = []
-    if clicked_office_id:
-        info = OFFICE_INFO.get(clicked_office_id, {})
-        if info:
+    nearby = []
+    for office in available_offices:
+        pub_id = office.get("publicId", "")
+        ozip   = office.get("addressZip", "")
+        oname  = office.get("name", "").title()
+        oaddr  = office.get("addressLine1", "")
+        distance = 0.0
+        if user_coords and ozip:
             try:
-                user_coords   = zip_to_coords(zip_code)
-                office_coords = zip_to_coords(info["zip"])
-                distance      = round(geodesic(user_coords, office_coords).miles, 1)
+                office_coords = zip_to_coords(ozip)
+                distance = round(geodesic(user_coords, office_coords).miles, 1)
             except:
-                distance = 0.0
-            print(f"  Parsing slots for {info.get('city', clicked_office_id)}...")
-            slots = parse_slots_with_times(dates_data, clicked_office_id, distance, session, prefs)
-            print(f"    → {len(slots)} slots after filters")
-            all_slots.extend(slots)
+                distance = 9999
+        # Keep only offices within the radius
+        if distance <= radius_mi:
+            nearby.append((pub_id, oname, oaddr, ozip, distance))
+
+    # Sort by distance, closest first
+    nearby.sort(key=lambda x: x[4])
+    print(f"  {len(nearby)} offices within {radius_mi} miles")
+
+    for pub_id, oname, oaddr, ozip, distance in nearby:
+        dates = get_dates_for_office(pub_id, session)
+        if not dates:
+            continue
+        print(f"  {oname}: {len(dates)} date entries ({distance} mi)")
+        slots = parse_office_dates(dates, pub_id, oname, oaddr, distance, session, prefs)
+        all_slots.extend(slots)
+        time.sleep(0.4)
 
     print(f"Total slots found: {len(all_slots)}")
     return all_slots
+
+
+def parse_office_dates(dates_response, pub_id, office_name, office_address,
+                       distance_mi, session, prefs) -> list:
+    """Parse the dates response for a single office and fetch times per date."""
+    global SERVICE_ID
+    slots = []
+    # The dates response may be a list of date strings or objects
+    for entry in dates_response:
+        if isinstance(entry, dict):
+            raw_date = entry.get("date", "")
+        else:
+            raw_date = str(entry)
+        if not raw_date:
+            continue
+        slot_date = raw_date.split("T")[0]
+        if not passes_day_filter(slot_date, prefs):
+            continue
+
+        office_num = pub_id.split("!")[0]
+        base_url   = f"{BOOKING_URL}?officeId={office_num}&date={slot_date}"
+        times      = get_times_for_date(pub_id, slot_date, session)
+
+        if times:
+            for t in times:
+                tstr = t if isinstance(t, str) else (t.get("time", "") if isinstance(t, dict) else "")
+                if not tstr:
+                    continue
+                if not passes_time_filter(tstr, prefs):
+                    continue
+                slots.append(Slot(
+                    office_id=pub_id, office_name=office_name,
+                    office_address=office_address, distance_mi=distance_mi,
+                    service_type=SERVICE_ID, slot_date=slot_date, slot_time=tstr,
+                    booking_url=f"{base_url}&time={tstr}",
+                ))
+        else:
+            slots.append(Slot(
+                office_id=pub_id, office_name=office_name,
+                office_address=office_address, distance_mi=distance_mi,
+                service_type=SERVICE_ID, slot_date=slot_date, slot_time="",
+                booking_url=base_url,
+            ))
+        time.sleep(0.3)
+
+    return slots
 
 
 if __name__ == "__main__":
